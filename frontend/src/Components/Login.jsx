@@ -12,6 +12,8 @@ const Login = ({ onLogin }) => {
   const [showResend, setShowResend] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
+  console.log("formData:", formData);
+
   const navigate = useNavigate();
 
   const handleInputChange = useCallback((e) => {
