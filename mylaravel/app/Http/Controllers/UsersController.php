@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Validator;
 
 class UsersController extends Controller
 {
-    public function index()
+    public function index() // index() → GET
     {
         try {
             \Log::info('Test user index route called');
@@ -25,6 +25,7 @@ class UsersController extends Controller
     public function store(Request $request)
     {
         try {
+            // Validate dữ liệu đầu vào (email unique, password >= 8, role/status hợp lệ...).
             $validator = Validator::make($request->all(), [
                'name' => 'required|string|max:255',
                 'first_name' => 'nullable|string|max:100',
@@ -46,6 +47,8 @@ class UsersController extends Controller
                 return response()->json(['errors' => $validator->errors()], 422);
             }
 
+            // Nếu hợp lệ → tạo user mới.
+            // Password được hash bằng Hash::make().
             $user = User::create([
                 'name' => $request->name,
                 'first_name' => $request->first_name,
@@ -63,7 +66,7 @@ class UsersController extends Controller
                 'phone' => $request->phone,
             ]);
 
-            // Load relationships để trả về đầy đủ thông tin
+            // Load relationships để trả về đầy đủ thông tin. Nạp thêm dữ liệu quan hệ để trả về đầy đủ.
             $user->load(['unit', 'team']);
 
             return response()->json(['message' => 'User created successfully', 'data' => $user], 201);
@@ -73,10 +76,11 @@ class UsersController extends Controller
         }
     }
 
-    public function show(string $id)
+    public function show(string $id) // show($id) → GET /users/{id}
     {
        try {
-            $user = User::with(['unit', 'team'])->findOrFail($id); // Sửa 'teams' thành 'team'
+            // Mục đích: xem chi tiết 1 user.
+            $user = User::with(['unit', 'team'])->findOrFail($id);
             return response()->json(['success' => true, 'message' => 'User retrieved successfully' , 'data' => $user], 200);
        } catch (\Exception $e) {
             \Log::error('Test error: ' . $e->getMessage());
@@ -84,22 +88,23 @@ class UsersController extends Controller
        }
     }
 
-    public function update(Request $request, string $id)
+    public function update(Request $request, string $id) // update($id) → PUT/PATCH /users/{id}
     {
-
         try {
+            // Tìm user theo ID, khi mình cập nhật
             $user = User::findOrFail($id);
+            // Validate dữ liệu update (email phải unique trừ chính user hiện tại).
             $validator = Validator::make($request->all(), [
                 'name'        => 'nullable|string|max:255',
                 'first_name'  => 'nullable|string|max:100',
-                'last_name'   => 'nullable|string|max:100', // ✅ fix
-                'email'       => 'nullable|email|unique:users,email,' . $id, // ✅ fix: bỏ khoảng trắng + thêm $id để bỏ qua user hiện tại
+                'last_name'   => 'nullable|string|max:100', 
+                'email'       => 'nullable|email|unique:users,email,' . $id, // bỏ khoảng trắng + thêm $id để bỏ qua user hiện tại
                 'password'    => 'nullable|string|min:8',
                 'unit_id'     => 'nullable|exists:units,id',
                 'team_id'     => 'nullable|exists:teams,id',
                 'avatar'      => 'nullable|url',
                 'role'        => 'nullable|in:user,admin,manager',
-                'status'      => 'nullable|in:active,inactive,suspended', // ✅ bỏ khoảng trắng thừa
+                'status'      => 'nullable|in:active,inactive,suspended', // bỏ khoảng trắng thừa
                 'date_of_birth'=> 'nullable|date',
                 'address'     => 'nullable|string',
                 'gender'      => 'nullable|in:male,female,other',
@@ -111,11 +116,13 @@ class UsersController extends Controller
             }
 
             $validatedData = $validator->validate();
-            // Hash password nếu có cập nhật
+
+            // Nếu update password → hash lại trước khi lưu.
             if (isset($validatedData['password'])) {
                 $validatedData['password'] = Hash::make($validatedData['password']);
             }
 
+            // Cập nhật thông tin và trả lại user.
             $user->update($validatedData);
             $user->load(['unit', 'team']); // Load relationships
 
@@ -127,9 +134,10 @@ class UsersController extends Controller
         
     }
 
-    public function destroy(string $id)
+    public function destroy(string $id) // destroy($id) → DELETE /users/{id}
     {
         try{
+            // Tìm user theo ID
             $user = User::findOrFail($id); 
             $user->delete(); 
             return response()->json(['success'=> true, 'message' => 'User deleted successfully'],200);

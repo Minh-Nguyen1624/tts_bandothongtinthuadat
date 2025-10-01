@@ -17,6 +17,7 @@ class Kernel extends HttpKernel
      * @var array<string, array<int, class-string|string>>
      */
     protected $middlewareGroups = [
+        // dùng cho các route web, có session, cookie, CSRF protection.
         'web' => [
             \App\Http\Middleware\EncryptCookies::class,
             \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
@@ -26,12 +27,13 @@ class Kernel extends HttpKernel
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
         ],
 
+        // dùng cho route API, thường stateless (không session)
         'api' => [
-            \App\Http\Middleware\HandleCors::class,
+            \App\Http\Middleware\HandleCors::class, // xử lý CORS (cho phép request từ domain khác)
             // 
-            \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
-            'throttle:api',
-            \Illuminate\Routing\Middleware\SubstituteBindings::class,
+            \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class, // hỗ trợ frontend với Sanctum (nếu có).
+            'throttle:api', // hạn chế số request (rate limit).
+            \Illuminate\Routing\Middleware\SubstituteBindings::class, // xử lý route model binding.
         ],
     ];
 
