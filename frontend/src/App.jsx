@@ -9,6 +9,7 @@ import Login from "./Components/Login.jsx";
 import Dashboard from "./Components/Dashboard.jsx";
 import HomePage from "./Components/HomePage.jsx";
 import Header from "./Components/Header.jsx";
+import LandPlotManagement from "./Components/LandPlotManagement.jsx";
 
 // Route bảo vệ
 const ProtectedRoute = ({ children }) => {
@@ -87,6 +88,14 @@ function App() {
           element={
             <ProtectedRoute>
               <Dashboard onLogout={handleLogout} user={user} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/land-plot-management"
+          element={
+            <ProtectedRoute>
+              <LandPlotManagement />
             </ProtectedRoute>
           }
         />

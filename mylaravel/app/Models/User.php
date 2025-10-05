@@ -60,6 +60,10 @@ class User extends Authenticatable implements JWTSubject
         return $this->belongsTo(Teams::class);
     }
 
+    public function landPlots(){
+        return $this->hasMany(land_plots::class, 'user_id');
+    }
+
     // JWT dùng id user làm identifier.
     public function getJWTIdentifier()
     {

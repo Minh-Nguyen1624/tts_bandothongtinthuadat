@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import "../css/Login.css";
@@ -11,8 +11,24 @@ const Login = ({ onLogin }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [showResend, setShowResend] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showToTop, setShowToTop] = useState(false);
 
-  console.log("formData:", formData);
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > 200) {
+        setShowToTop(true);
+      } else {
+        setShowToTop(false);
+      }
+    };
+    window.addEventListener("scroll", handleScroll);
+
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, []);
+
+  // console.log("formData:", formData);
 
   const navigate = useNavigate();
 
@@ -137,6 +153,20 @@ const Login = ({ onLogin }) => {
         <button type="submit" disabled={isLoading}>
           {isLoading ? <span className="spinner"></span> : "Đăng Nhập"}
         </button>
+
+        {/* {showToTop && (
+          <button
+            type="button"
+            style={{
+              position: "fixed",
+              bottom: "20px",
+              right: "20px",
+            }}
+            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          >
+            Go To Top
+          </button>
+        )} */}
 
         {/* {showResend && (
           <button

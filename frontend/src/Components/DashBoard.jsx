@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import "../css/ModalForm.css";
+import "../css/Dashboard.css";
 
 const API_URL = "http://127.0.0.1:8000";
 
 export default function Dashboard() {
   const tabs = [
-    { key: "users", label: "Người dùng" },
-    { key: "units", label: "Đơn vị" },
-    { key: "teams", label: "Nhóm" },
+    { key: "users", label: " Người dùng" },
+    { key: "units", label: " Đơn vị" },
+    { key: "teams", label: " Nhóm" },
   ];
 
   const [types, setTypes] = useState("users");
@@ -17,44 +18,47 @@ export default function Dashboard() {
   const [addMode, setAddMode] = useState(false);
   const [formData, setFormData] = useState({});
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
   const token = localStorage.getItem("token");
 
   /* ---------- HELPERS ---------- */
-
   const getFormFields = (type, mode = "edit") => {
     if (type === "users") {
-      // Định nghĩa tất cả các field theo thứ tự mong muốn
       const allFields = [
-        { key: "first_name", label: "Họ" },
-        { key: "last_name", label: "Tên" },
+        { key: "first_name", label: "Họ", required: true },
+        { key: "last_name", label: "Tên", required: true },
         { key: "name", label: "Tên đầy đủ" },
-        { key: "email", label: "Email" },
-        { key: "password", label: "Mật khẩu", type: "password" },
-        { key: "phone", label: "Số điện thoại" },
-        { key: "date_of_birth", label: "Ngày sinh" },
+        { key: "email", label: "Email", type: "email", required: true },
+        {
+          key: "password",
+          label: "Mật khẩu",
+          type: "password",
+          required: mode === "add",
+        },
+        { key: "phone", label: "Số điện thoại", type: "tel" },
+        { key: "date_of_birth", label: "Ngày sinh", type: "date" },
         { key: "gender", label: "Giới tính" },
         { key: "address", label: "Địa chỉ" },
         { key: "avatar", label: "Ảnh đại diện" },
-        { key: "role", label: "Vai trò" },
+        { key: "role", label: "Vai trò", required: true },
         { key: "status", label: "Trạng thái" },
         { key: "unit_id", label: "ID đơn vị" },
         { key: "team_id", label: "ID nhóm" },
       ];
-
-      // Cả add và edit mode đều hiển thị tất cả các field
       return allFields;
     } else if (type === "units") {
       return [
-        { key: "name", label: "Tên" },
-        { key: "type", label: "Loại" },
-        { key: "code", label: "Mã" },
+        { key: "name", label: "Tên", required: true },
+        { key: "type", label: "Loại", required: true },
+        { key: "code", label: "Mã", required: true },
       ];
     } else if (type === "teams") {
       return [
-        { key: "name", label: "Tên" },
-        { key: "unit_id", label: "ID đơn vị" },
+        { key: "name", label: "Tên", required: true },
+        { key: "unit_id", label: "ID đơn vị", required: true },
         { key: "description", label: "Mô tả" },
-        { key: "status", label: "Trạng thái" },
+        { key: "status", label: "Trạng thái", required: true },
       ];
     }
     return [];
@@ -66,7 +70,6 @@ export default function Dashboard() {
 
   const normalizeItem = (raw, type) => {
     const obj = raw && raw.data ? raw.data : raw;
-
     if (!obj) return obj;
 
     if (type === "users") {
@@ -139,23 +142,20 @@ export default function Dashboard() {
         }
         return;
       }
-
       payload[k] = val;
     });
 
-    // Nếu update (edit) và có password rỗng, không gửi password
     if (!addMode && payload.password === "") delete payload.password;
-
     return payload;
   };
 
   /* ---------- API ---------- */
-
   const fetchGetData = async () => {
     if (!token) {
       console.warn("No token found. Please login first.");
       return;
     }
+    setLoading(true);
     try {
       const response = await axios.get(`${API_URL}/api/${types}`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -167,6 +167,8 @@ export default function Dashboard() {
     } catch (error) {
       console.error("Fetch error:", error.response?.data || error.message);
       setData([]);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -180,9 +182,28 @@ export default function Dashboard() {
 
   const handleAddSubmit = async () => {
     if (!token) {
-      alert("No token - please login");
+      alert("Vui lòng đăng nhập trước");
       return;
     }
+
+    // Validate required fields
+    const requiredFields = getFormFields(types, "add").filter(
+      (f) => f.required
+    );
+    const missingFields = requiredFields.filter(
+      (f) => !formData[f.key] || formData[f.key].toString().trim() === ""
+    );
+
+    if (missingFields.length > 0) {
+      alert(
+        `Vui lòng điền các trường bắt buộc: ${missingFields
+          .map((f) => f.label)
+          .join(", ")}`
+      );
+      return;
+    }
+
+    setLoading(true);
     try {
       const payload = buildPayloadForType(types, formData);
       const response = await axios.post(`${API_URL}/api/${types}`, payload, {
@@ -198,37 +219,63 @@ export default function Dashboard() {
     } catch (error) {
       console.error("Add error:", error.response?.data || error.message);
       alert(
-        "Lỗi khi thêm. Kiểm tra console. " +
-          (error.response?.data?.message || error.message)
+        "Lỗi khi thêm: " + (error.response?.data?.message || error.message)
       );
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleDelete = async (id) => {
     if (!token) return;
     if (!window.confirm("Bạn có chắc chắn muốn xóa mục này?")) return;
+
+    setLoading(true);
     try {
       await axios.delete(`${API_URL}/api/${types}/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setData((prev) => prev.filter((it) => it.id !== id));
+      alert("Xóa thành công!");
     } catch (error) {
       console.error("Delete error:", error.response?.data || error.message);
-      alert("Xóa thất bại. Kiểm tra console.");
+      alert(
+        "Xóa thất bại: " + (error.response?.data?.message || error.message)
+      );
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleEditOpen = (item) => {
     setEditingItem(item);
-    // Khi edit, KHÔNG copy password từ item cũ - để trống
     const { password, ...itemWithoutPassword } = item;
-    setFormData({ ...itemWithoutPassword, password: "" }); // Đặt password thành rỗng
+    setFormData({ ...itemWithoutPassword, password: "" });
     setAddMode(false);
     setShowPassword(false);
   };
 
   const handleUpdate = async () => {
     if (!token || !editingItem) return;
+
+    // Validate required fields
+    const requiredFields = getFormFields(types, "edit").filter(
+      (f) => f.required
+    );
+    const missingFields = requiredFields.filter(
+      (f) => !formData[f.key] || formData[f.key].toString().trim() === ""
+    );
+
+    if (missingFields.length > 0) {
+      alert(
+        `Vui lòng điền các trường bắt buộc: ${missingFields
+          .map((f) => f.label)
+          .join(", ")}`
+      );
+      return;
+    }
+
+    setLoading(true);
     try {
       const payload = buildPayloadForType(types, formData);
       const response = await axios.put(
@@ -249,22 +296,43 @@ export default function Dashboard() {
     } catch (error) {
       console.error("Update error:", error.response?.data || error.message);
       alert(
-        "Cập nhật thất bại. Kiểm tra console. " +
-          (error.response?.data?.message || error.message)
+        "Cập nhật thất bại: " + (error.response?.data?.message || error.message)
       );
+    } finally {
+      setLoading(false);
     }
   };
 
-  /* ---------- UI helpers ---------- */
+  // Filter data based on search term
+  const filteredData = data.filter((item) => {
+    if (!searchTerm) return true;
 
+    const searchLower = searchTerm.toLowerCase();
+    if (types === "users") {
+      return (
+        (item.name && item.name.toLowerCase().includes(searchLower)) ||
+        (item.email && item.email.toLowerCase().includes(searchLower)) ||
+        (item.phone && item.phone.includes(searchTerm))
+      );
+    } else if (types === "units") {
+      return (
+        (item.name && item.name.toLowerCase().includes(searchLower)) ||
+        (item.code && item.code.toLowerCase().includes(searchLower))
+      );
+    } else if (types === "teams") {
+      return (
+        (item.name && item.name.toLowerCase().includes(searchLower)) ||
+        (item.description &&
+          item.description.toLowerCase().includes(searchLower))
+      );
+    }
+    return true;
+  });
+
+  /* ---------- RENDER FUNCTIONS ---------- */
   const displayValue = (val, fieldKey, mode) => {
     if (val === undefined || val === null) return "";
-
-    // Đặc biệt xử lý cho password field trong edit mode - luôn trả về rỗng
-    if (fieldKey === "password" && mode === "edit") {
-      return "";
-    }
-
+    if (fieldKey === "password" && mode === "edit") return "";
     if (typeof val === "object") {
       if (Array.isArray(val)) {
         return val.map((v) => v.name ?? v.id ?? "").join(", ");
@@ -274,355 +342,372 @@ export default function Dashboard() {
     return val;
   };
 
-  /* ---------- STYLES ---------- */
-  const tdStyle = { border: "1px solid #ddd", padding: "8px" };
-  const btnStyle = {
-    padding: "6px 12px",
-    border: "none",
-    borderRadius: "4px",
-    backgroundColor: "#007bff",
-    color: "white",
-    cursor: "pointer",
-    marginLeft: "8px",
-  };
-  const overlayStyle = {
-    position: "fixed",
-    top: 0,
-    left: 0,
-    width: "100%",
-    height: "100%",
-    background: "rgba(0,0,0,0.5)",
-    zIndex: 999,
-  };
-  const modalStyle = {
-    background: "white",
-    padding: "22px",
-    borderRadius: "8px",
-    width: "900px",
-    maxWidth: "95%",
-    margin: "60px auto",
-    boxSizing: "border-box",
-    maxHeight: "90vh",
-    overflowY: "auto",
-  };
-  const gridStyle = {
-    display: "grid",
-    gridTemplateColumns: "repeat(3, 1fr)",
-    gap: "18px",
-    marginBottom: "18px",
-    alignItems: "start",
-  };
-  const labelStyle = {
-    textAlign: "center",
-    fontSize: "15px",
-    marginBottom: "6px",
-    display: "block",
-    fontWeight: "bold",
-  };
-  const inputStyle = {
-    width: "100%",
-    padding: "8px",
-    boxSizing: "border-box",
-    border: "1px solid #ddd",
-    borderRadius: "4px",
-  };
-
-  const passwordWrapperStyle = {
-    position: "relative",
-    display: "flex",
-    alignItems: "center",
-  };
-
-  const passwordToggleStyle = {
-    position: "absolute",
-    right: "8px",
-    background: "none",
-    border: "none",
-    cursor: "pointer",
-    padding: "4px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    color: "#666",
-  };
-
-  // Hàm render input field với hỗ trợ password
   const renderInputField = (f, value, onChange, mode = "add") => {
+    const inputId = `${mode}-${f.key}`;
+
     if (f.key === "password") {
       return (
-        <div style={passwordWrapperStyle}>
+        <div className="password-wrapper">
           <input
-            style={inputStyle}
+            id={inputId}
+            className="form-input"
             type={showPassword ? "text" : "password"}
             value={value}
             onChange={onChange}
             placeholder={
-              mode === "add"
-                ? "Nhập mật khẩu"
-                : "Để trống nếu không đổi mật khẩu"
+              mode === "add" ? "Nhập mật khẩu" : "Để trống nếu không đổi"
             }
+            required={f.required}
           />
           <button
             type="button"
-            style={passwordToggleStyle}
+            className="password-toggle"
             onClick={togglePasswordVisibility}
+            title={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
           >
-            {showPassword ? (
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                <circle cx="12" cy="12" r="3"></circle>
-              </svg>
-            ) : (
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-                <line x1="1" y1="1" x2="23" y2="23"></line>
-              </svg>
-            )}
+            {showPassword ? "🙈" : "👁️"}
           </button>
         </div>
       );
-    } else {
+    }
+
+    if (f.key === "date_of_birth") {
       return (
         <input
-          style={inputStyle}
+          id={inputId}
+          className="form-input"
+          type="date"
           value={value}
           onChange={onChange}
-          type="text"
+          required={f.required}
         />
       );
     }
+
+    if (f.key === "gender") {
+      return (
+        <select
+          id={inputId}
+          className="form-input"
+          value={value}
+          onChange={onChange}
+          required={f.required}
+        >
+          <option value="">Chọn giới tính</option>
+          <option value="male">Nam</option>
+          <option value="female">Nữ</option>
+          <option value="other">Khác</option>
+        </select>
+      );
+    }
+
+    if (f.key === "role") {
+      return (
+        <select
+          id={inputId}
+          className="form-input"
+          value={value}
+          onChange={onChange}
+          required={f.required}
+        >
+          <option value="">Chọn vai trò</option>
+          <option value="admin">Quản trị</option>
+          <option value="user">Người dùng</option>
+          <option value="manager">Quản lý</option>
+        </select>
+      );
+    }
+
+    if (f.key === "status") {
+      return (
+        <select
+          id={inputId}
+          className="form-input"
+          value={value}
+          onChange={onChange}
+          required={f.required}
+        >
+          <option value="">Chọn trạng thái</option>
+          <option value="active">Hoạt động</option>
+          <option value="inactive">Không hoạt động</option>
+        </select>
+      );
+    }
+
+    return (
+      <input
+        id={inputId}
+        className="form-input"
+        value={value}
+        onChange={onChange}
+        type={f.type || "text"}
+        placeholder={`Nhập ${f.label.toLowerCase()}`}
+        required={f.required}
+      />
+    );
   };
 
   return (
-    <div style={{ padding: "40px", textAlign: "center" }}>
-      <h2 style={{ marginTop: 0 }}>
-        {types === "users"
-          ? "Quản lý người dùng"
-          : types === "units"
-          ? "Quản lý đơn vị"
-          : "Quản lý nhóm, tổ"}
-      </h2>
+    <div className="dashboard-container">
+      <div className="dashboard-header">
+        <h2 className="dashboard-title">
+          {types === "users"
+            ? " Quản lý Người dùng"
+            : types === "units"
+            ? " Quản lý Đơn vị"
+            : " Quản lý Nhóm"}
+        </h2>
 
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-around",
-          alignItems: "center",
-          marginBottom: "20px",
-        }}
-      >
-        <div>
-          {tabs.map((tab) => (
-            <button
-              key={tab.key} // Sửa: dùng tab.key thay vì tab
-              onClick={() => {
-                setTypes(tab.key);
-              }}
-              style={{
-                marginRight: "10px",
-                padding: "8px 14px",
-                borderRadius: "8px",
-                border: "none",
-                cursor: "pointer",
-                backgroundColor: types === tab.key ? "#0d6efd" : "#f0f0f0",
-                color: types === tab.key ? "#fff" : "#000",
-              }}
-            >
-              {tab.label} {/* Sửa: dùng tab.label thay vì tab */}
-            </button>
-          ))}
+        <div className="dashboard-controls">
+          <div className="search-box">
+            <input
+              type="text"
+              placeholder="Tìm kiếm..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="search-input"
+            />
+            <span className="search-icon">🔍</span>
+          </div>
+
+          <button
+            onClick={() => {
+              setFormData({});
+              setAddMode(true);
+              setEditingItem(null);
+              setShowPassword(false);
+            }}
+            className="add-button"
+            disabled={loading}
+          >
+            Thêm mới
+          </button>
         </div>
-
-        <button
-          onClick={() => {
-            setFormData({});
-            setAddMode(true);
-            setEditingItem(null);
-            setShowPassword(false);
-          }}
-          style={{
-            background: "#0d6efd",
-            color: "white",
-            padding: "8px 14px",
-            borderRadius: "8px",
-            border: "none",
-            cursor: "pointer",
-          }}
-        >
-          Thêm
-        </button>
       </div>
 
-      {/* Table - cập nhật tiêu đề tiếng Việt */}
-      <table
-        style={{ margin: "0 auto", borderCollapse: "collapse", width: "90%" }}
-      >
-        <thead>
-          <tr>
-            {types === "users" &&
-              [
-                "ID",
-                "Tên",
-                "Email",
-                "Vai trò",
-                "Đơn vị",
-                "Nhóm",
-                "Thao tác",
-              ].map((h) => (
-                <th key={h} style={tdStyle}>
-                  {h}
-                </th>
-              ))}
-            {types === "units" &&
-              ["ID", "Tên", "Loại", "Mã", "Thao tác"].map((h) => (
-                <th key={h} style={tdStyle}>
-                  {h}
-                </th>
-              ))}
-            {types === "teams" &&
-              ["ID", "Tên", "Đơn vị", "Mô tả", "Trạng thái", "Thao tác"].map(
-                (h) => (
-                  <th key={h} style={tdStyle}>
-                    {h}
-                  </th>
-                )
-              )}
-          </tr>
-        </thead>
+      {/* Navigation Tabs */}
+      <div className="tab-container">
+        {tabs.map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setTypes(tab.key)}
+            className={`tab-button ${types === tab.key ? "active" : ""}`}
+          >
+            <span className="tab-icon">{tab.icon}</span>
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
-        <tbody>
-          {!Array.isArray(data) || data.length === 0 ? (
-            <tr>
-              <td
-                colSpan={types === "users" ? 7 : types === "units" ? 5 : 6}
-                style={tdStyle}
-              >
-                Không có dữ liệu
-              </td>
-            </tr>
-          ) : (
-            data.map((item) => (
-              <tr key={item.id}>
-                {types === "users" && (
-                  <>
-                    <td style={tdStyle}>{item.id}</td>
-                    <td style={tdStyle}>{item.name}</td>
-                    <td style={tdStyle}>{item.email}</td>
-                    <td style={tdStyle}>
-                      {item.role === "admin"
-                        ? "Quản trị"
-                        : item.role === "user"
-                        ? "Người dùng"
-                        : item.role}
-                    </td>
-                    <td style={tdStyle}>{item.unit?.name ?? "-"}</td>
-                    <td style={tdStyle}>{item.team?.name ?? "-"}</td>
-                    <td style={tdStyle}>
-                      <button
-                        style={btnStyle}
-                        onClick={() => handleEditOpen(item)}
-                      >
-                        Sửa
-                      </button>
-                      <button
-                        style={{ ...btnStyle, backgroundColor: "red" }}
-                        onClick={() => handleDelete(item.id)}
-                      >
-                        Xóa
-                      </button>
-                    </td>
-                  </>
-                )}
-
-                {types === "units" && (
-                  <>
-                    <td style={tdStyle}>{item.id}</td>
-                    <td style={tdStyle}>{item.name}</td>
-                    <td style={tdStyle}>{item.type}</td>
-                    <td style={tdStyle}>{item.code}</td>
-                    <td style={tdStyle}>
-                      <button
-                        style={btnStyle}
-                        onClick={() => handleEditOpen(item)}
-                      >
-                        Sửa
-                      </button>
-                      <button
-                        style={{ ...btnStyle, backgroundColor: "red" }}
-                        onClick={() => handleDelete(item.id)}
-                      >
-                        Xóa
-                      </button>
-                    </td>
-                  </>
-                )}
-
-                {types === "teams" && (
-                  <>
-                    <td style={tdStyle}>{item.id}</td>
-                    <td style={tdStyle}>{item.name}</td>
-                    <td style={tdStyle}>{item.unit?.name ?? "-"}</td>
-                    <td style={tdStyle}>{item.description}</td>
-                    <td style={tdStyle}>
-                      {item.status === "active"
-                        ? "Hoạt động"
-                        : item.status === "inactive"
-                        ? "Không hoạt động"
-                        : item.status}
-                    </td>
-                    <td style={tdStyle}>
-                      <button
-                        style={btnStyle}
-                        onClick={() => handleEditOpen(item)}
-                      >
-                        Sửa
-                      </button>
-                      <button
-                        style={{ ...btnStyle, backgroundColor: "red" }}
-                        onClick={() => handleDelete(item.id)}
-                      >
-                        Xóa
-                      </button>
-                    </td>
-                  </>
-                )}
+      {/* Data Table */}
+      <div className="table-container">
+        {loading ? (
+          <div className="loading-state">
+            <div className="spinner"></div>
+            <p>Đang tải dữ liệu...</p>
+          </div>
+        ) : (
+          <table className="data-table">
+            <thead>
+              <tr>
+                {types === "users" &&
+                  [
+                    "ID",
+                    "Tên",
+                    "Email",
+                    "Vai trò",
+                    "Đơn vị",
+                    "Nhóm",
+                    "Thao tác",
+                  ].map((h) => <th key={h}>{h}</th>)}
+                {types === "units" &&
+                  ["ID", "Tên", "Loại", "Mã", "Thao tác"].map((h) => (
+                    <th key={h}>{h}</th>
+                  ))}
+                {types === "teams" &&
+                  [
+                    "ID",
+                    "Tên",
+                    "Đơn vị",
+                    "Mô tả",
+                    "Trạng thái",
+                    "Thao tác",
+                  ].map((h) => <th key={h}>{h}</th>)}
               </tr>
-            ))
-          )}
-        </tbody>
-      </table>
+            </thead>
 
-      {/* ---------- ADD MODAL ---------- */}
+            <tbody>
+              {filteredData.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={types === "users" ? 7 : types === "units" ? 5 : 6}
+                    className="no-data"
+                  >
+                    {searchTerm
+                      ? "Không tìm thấy kết quả phù hợp"
+                      : "Không có dữ liệu"}
+                  </td>
+                </tr>
+              ) : (
+                filteredData.map((item) => (
+                  <tr key={item.id} className="table-row">
+                    {types === "users" && (
+                      <>
+                        <td className="id-cell">{item.id}</td>
+                        <td>
+                          <div className="user-info">
+                            {item.avatar && (
+                              <img
+                                src={item.avatar}
+                                alt="Avatar"
+                                className="avatar"
+                              />
+                            )}
+                            <span>
+                              {item.name ||
+                                `${item.first_name} ${item.last_name}`}
+                            </span>
+                          </div>
+                        </td>
+                        <td>{item.email}</td>
+                        <td>
+                          <span className={`role-badge ${item.role}`}>
+                            {item.role === "admin"
+                              ? "Quản trị"
+                              : item.role === "user"
+                              ? "Người dùng"
+                              : item.role}
+                          </span>
+                        </td>
+                        <td>{item.unit?.name ?? "-"}</td>
+                        <td>{item.team?.name ?? "-"}</td>
+                        <td>
+                          <div className="action-buttons">
+                            <button
+                              className="edit-button"
+                              onClick={() => handleEditOpen(item)}
+                              disabled={loading}
+                            >
+                              ✏️
+                            </button>
+                            <button
+                              className="delete-button"
+                              onClick={() => handleDelete(item.id)}
+                              disabled={loading}
+                            >
+                              🗑️
+                            </button>
+                          </div>
+                        </td>
+                      </>
+                    )}
+
+                    {types === "units" && (
+                      <>
+                        <td className="id-cell">{item.id}</td>
+                        <td>{item.name}</td>
+                        <td>{item.type}</td>
+                        <td>
+                          <span className="code-badge">{item.code}</span>
+                        </td>
+                        <td>
+                          <div className="action-buttons">
+                            <button
+                              className="edit-button"
+                              onClick={() => handleEditOpen(item)}
+                              disabled={loading}
+                            >
+                              ✏️
+                            </button>
+                            <button
+                              className="delete-button"
+                              onClick={() => handleDelete(item.id)}
+                              disabled={loading}
+                            >
+                              🗑️
+                            </button>
+                          </div>
+                        </td>
+                      </>
+                    )}
+
+                    {types === "teams" && (
+                      <>
+                        <td className="id-cell">{item.id}</td>
+                        <td>{item.name}</td>
+                        <td>{item.unit?.name ?? "-"}</td>
+                        <td className="description-cell">
+                          {item.description || "-"}
+                        </td>
+                        <td>
+                          <span className={`status-badge ${item.status}`}>
+                            {item.status === "active"
+                              ? "Hoạt động"
+                              : item.status === "inactive"
+                              ? "Không hoạt động"
+                              : item.status}
+                          </span>
+                        </td>
+                        <td>
+                          <div className="action-buttons">
+                            <button
+                              className="edit-button"
+                              onClick={() => handleEditOpen(item)}
+                              disabled={loading}
+                            >
+                              ✏️
+                            </button>
+                            <button
+                              className="delete-button"
+                              onClick={() => handleDelete(item.id)}
+                              disabled={loading}
+                            >
+                              🗑️
+                            </button>
+                          </div>
+                        </td>
+                      </>
+                    )}
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {/* Add Modal */}
       {addMode && (
-        <div style={overlayStyle}>
-          <div style={modalStyle}>
-            <h3 style={{ textAlign: "center", marginTop: 0 }}>
-              Thêm{" "}
-              {types === "users"
-                ? "người dùng"
-                : types === "units"
-                ? "đơn vị"
-                : "nhóm"}
-            </h3>
+        <div className="modal-overlay">
+          <div className="modal">
+            <div className="modal-header">
+              <h3>
+                Thêm{" "}
+                {types === "users"
+                  ? "người dùng"
+                  : types === "units"
+                  ? "đơn vị"
+                  : "nhóm"}
+              </h3>
+              <button
+                className="close-button"
+                onClick={() => {
+                  setAddMode(false);
+                  setFormData({});
+                  setShowPassword(false);
+                }}
+              >
+                ✕
+              </button>
+            </div>
 
-            <div style={gridStyle}>
+            <div className="form-grid">
               {getFormFields(types, "add").map((f) => (
-                <div key={f.key}>
-                  <label style={labelStyle}>{f.label}</label>
+                <div key={f.key} className="form-field">
+                  <label className="form-label">
+                    {f.label}
+                    {f.required && <span className="required">*</span>}
+                  </label>
                   {renderInputField(
                     f,
                     displayValue(formData[f.key], f.key, "add"),
@@ -634,51 +719,68 @@ export default function Dashboard() {
               ))}
             </div>
 
-            <div style={{ textAlign: "center" }}>
+            <div className="modal-actions">
               <button
-                style={{ ...btnStyle, backgroundColor: "#007bff" }}
+                className="save-button"
                 onClick={handleAddSubmit}
+                disabled={loading}
               >
-                Lưu
+                {loading ? "⏳ Đang xử lý..." : "💾 Lưu"}
               </button>
               <button
-                style={{ ...btnStyle, backgroundColor: "gray" }}
+                className="cancel-button"
                 onClick={() => {
                   setAddMode(false);
                   setFormData({});
                   setShowPassword(false);
                 }}
+                disabled={loading}
               >
-                Hủy
+                ❌ Hủy
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ---------- EDIT MODAL ---------- */}
+      {/* Edit Modal */}
       {editingItem && (
-        <div style={overlayStyle}>
-          <div style={modalStyle}>
-            <h3 style={{ textAlign: "center", marginTop: 0 }}>
-              Sửa{" "}
-              {types === "users"
-                ? "người dùng"
-                : types === "units"
-                ? "đơn vị"
-                : "nhóm"}
-            </h3>
+        <div className="modal-overlay">
+          <div className="modal">
+            <div className="modal-header">
+              <h3>
+                Sửa{" "}
+                {types === "users"
+                  ? "người dùng"
+                  : types === "units"
+                  ? "đơn vị"
+                  : "nhóm"}
+              </h3>
+              <button
+                className="close-button"
+                onClick={() => {
+                  setEditingItem(null);
+                  setFormData({});
+                  setShowPassword(false);
+                }}
+              >
+                ✕
+              </button>
+            </div>
 
-            <div style={gridStyle}>
+            <div className="form-grid">
               {getFormFields(types, "edit").map((f) => {
                 const val = formData[f.key];
                 const shown = displayValue(val, f.key, "edit");
 
                 return (
-                  <div key={f.key}>
-                    <label style={labelStyle}>{f.label}</label>
+                  <div key={f.key} className="form-field">
+                    <label className="form-label">
+                      {f.label}
+                      {f.required && <span className="required">*</span>}
+                    </label>
                     {typeof val === "object" && val !== null ? (
-                      <input style={inputStyle} value={shown} disabled />
+                      <input className="form-input" value={shown} disabled />
                     ) : (
                       renderInputField(
                         f,
@@ -692,33 +794,41 @@ export default function Dashboard() {
                 );
               })}
 
-              {/* Hiển thị các trường metadata */}
+              {/* Metadata fields */}
               {["created_at", "updated_at", "email_verified_at"].map((meta) =>
                 formData[meta] ? (
-                  <div key={meta}>
-                    <label style={labelStyle}>{meta}</label>
-                    <input style={inputStyle} value={formData[meta]} disabled />
+                  <div key={meta} className="form-field">
+                    <label className="form-label">
+                      {meta.replace("_", " ")}
+                    </label>
+                    <input
+                      className="form-input"
+                      value={formData[meta]}
+                      disabled
+                    />
                   </div>
                 ) : null
               )}
             </div>
 
-            <div style={{ textAlign: "center" }}>
+            <div className="modal-actions">
               <button
-                style={{ ...btnStyle, backgroundColor: "#0d6efd" }}
+                className="save-button"
                 onClick={handleUpdate}
+                disabled={loading}
               >
-                Lưu
+                {loading ? "⏳ Đang xử lý..." : "💾 Cập nhật"}
               </button>
               <button
-                style={{ ...btnStyle, backgroundColor: "gray" }}
+                className="cancel-button"
                 onClick={() => {
                   setEditingItem(null);
                   setFormData({});
                   setShowPassword(false);
                 }}
+                disabled={loading}
               >
-                Hủy
+                ❌ Hủy
               </button>
             </div>
           </div>

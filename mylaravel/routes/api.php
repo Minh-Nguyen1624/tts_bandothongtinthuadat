@@ -7,15 +7,9 @@ use App\Http\Controllers\TeamController;
 use App\Http\Controllers\UsersController;
 use App\Http\Controllers\AuthController;
 use App\Http\Middleware\AdminMiddleware;
+use App\Http\Controllers\PlotListController;
+use App\Http\Controllers\LandPlotsController;
 
-
-Route::options('/{any}', function (Request $request) {
-    return response()->json([], 204)
-        ->header('Access-Control-Allow-Origin', $request->headers->get('Origin') ?: '*')
-        ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
-        ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With')
-        ->header('Access-Control-Allow-Credentials', 'true');
-})->where('any', '.*');
 
 // Public test route
 Route::get('/test', function () {
@@ -25,7 +19,6 @@ Route::get('/test', function () {
 // Authentication Routes
 Route::prefix('auth')->group(function() {
     Route::post('login', [AuthController::class, 'login']);
-    // Route::post('refresh', [AuthController::class, 'refresh']);
     
     // Protected auth routes
     Route::middleware('auth:api')->group(function() {
@@ -53,7 +46,6 @@ Route::get('/test-jwt', function () {
         'message' => 'JWT middleware works!',
         'user' => auth('api')->user()
     ]);
-// })->middleware('auth:api');
 })->middleware([AdminMiddleware::class]);
 
 
@@ -62,11 +54,9 @@ Route::get('/test-admin', function () {
         'message' => 'Admin middleware works!',
         'user' => auth('api')->user()
     ]);
-// })->middleware(['auth:api', [AdminMiddleware::class]]);
 })->middleware([AdminMiddleware::class]);
 
 // Routes for all authenticated users (read-only access)
-// Route::middleware('auth:api')->group(function() {
 Route::middleware('auth:api')->group(function() {
     
     // Unit Routes - View only
@@ -85,6 +75,21 @@ Route::middleware('auth:api')->group(function() {
     Route::prefix('users')->group(function() {
         Route::get("/", [UsersController::class, 'index']);
         Route::get("/{id}", [UsersController::class, 'show']);
+        // Route::post("/", [UsersController::class, 'store']);
+
+    });
+
+    Route::prefix('plotlists')->group(function(){
+        Route::get('/', [PlotListController::class, 'index']);
+        Route::get('/search', [PlotListController::class, 'search'])->name('search');
+        Route::get('/{id}', [PlotListController::class, 'show']);
+    });
+    Route::prefix('land_plots')->group(function(){
+        Route::get('/', [LandPlotsController::class, 'index']);
+        Route::get('/search', [LandPlotsController::class, 'search']);
+        Route::get('/{id}', [LandPlotsController::class, 'show']);
+        Route::get('/land_plots/export/excel', [LandPlotsController::class, 'exportExcel']);
+        Route::post('/land_plots/export/selected', [LandPlotsController::class, 'exportSelectedExcel']);
     });
 });
 
@@ -111,4 +116,22 @@ Route::middleware([AdminMiddleware::class])->group(function() {
         Route::put("/{id}", [UsersController::class, 'update']);
         Route::delete("/{id}", [UsersController::class, 'destroy']);
     });
+
+    // PLotList Route - Admin CRUD
+    Route::prefix('plotlists')->group(function(){
+        Route::post('/', [PlotListController::class, 'store']);
+        // Route::get('/search', [PlotListController::class, 'search'])->name('search');
+        // Route::get("/{id}", [PlotListController::class, 'show']);
+        Route::put("/{id}", [PlotListController::class, 'update']);
+        Route::delete("/{id}", [PlotListController::class, 'destroy']);
+    }); 
+
+    Route::prefix('land_plots')->group(function(){
+        Route::post('/', [LandPlotsController::class, 'store']);
+        // Route::get('/search', [LandPlotsController::class, 'search']);
+        // Route::get("/{id}", [LandPlotsController::class, 'show']);
+        Route::put("/{id}", [LandPlotsController::class, 'update']);
+        Route::delete("/{id}", [LandPlotsController::class, 'destroy']);
+    });
 });
+

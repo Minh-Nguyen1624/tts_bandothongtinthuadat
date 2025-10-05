@@ -28,16 +28,29 @@ function Header({ isAuthenticated, user, handleLogout }) {
           Home
         </Link>
         {isAuthenticated && user?.role === "admin" && (
-          <Link
-            to="/dashboard"
-            style={{
-              textDecoration: "none",
-              color: "#28a745",
-              fontWeight: "bold",
-            }}
-          >
-            Dashboard
-          </Link>
+          <>
+            <Link
+              to="/dashboard"
+              style={{
+                textDecoration: "none",
+                color: "#28a745",
+                fontWeight: "bold",
+              }}
+            >
+              Dashboard
+            </Link>
+
+            <Link
+              to="/land-plot-management"
+              style={{
+                textDecoration: "none",
+                color: "#FFCC00",
+                fontWeight: "bold",
+              }}
+            >
+              Quản lý thửa đất
+            </Link>
+          </>
         )}
       </div>
 
