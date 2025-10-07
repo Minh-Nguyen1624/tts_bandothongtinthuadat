@@ -6,6 +6,8 @@ use App\Models\PlotList;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use App\Exports\PlotListExport;
+use Maatwebsite\Excel\Facades\Excel;
 
 class PlotListController extends Controller
 {
@@ -104,39 +106,41 @@ class PlotListController extends Controller
 
    public function search(Request $request){
     try {
-        $query = $request->input('query');
+        $query = PlotList::query();
 
-        $results = PlotList::query()
-            ->when($query, function ($q) use ($query) {
-                // Nếu là số nguyên -> tìm cả exact match và LIKE
-                if (is_numeric($query)) {
-                    return $q->where('organization_name', 'like', "%$query%")
-                        ->orWhere('so_to', (int) $query)
-                        ->orWhere('so_thua', (int) $query)
-                        ->orWhere(DB::raw("CAST(so_to AS TEXT)"), 'like', "%$query%")
-                        ->orWhere(DB::raw("CAST(so_thua AS TEXT)"), 'like', "%$query%")
-                        ->orWhere('dia_chi_thua_dat', 'like', "%$query%")
-                        ->orWhere('xa', 'like', "%$query%");
-                } else {
-                    // Nếu là chữ -> chỉ tìm trong cột text
-                    return $q->where('organization_name', 'like', "%$query%")
-                        ->orWhere('dia_chi_thua_dat', 'like', "%$query%")
-                        ->orWhere('xa', 'like', "%$query%");
-                }
-            })
-            ->get();
+        if ($request->has('query') && !empty($request->input('query'))) {
+            $searchTerm = $request->input('query');
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('organization_name', 'ILIKE', "%{$searchTerm}%")
+                ->orWhere('so_to', 'ILIKE', "%{$searchTerm}%")
+                ->orWhere('so_thua', 'ILIKE', "%{$searchTerm}%")
+                ->orWhere('dia_chi_thua_dat', 'ILIKE', "%{$searchTerm}%")
+                ->orWhere('xa', 'ILIKE', "%{$searchTerm}%");
+            });
+        }
 
-            // return view('plotlist.search', compact('results', 'query'));
-            return response()->json([
-                'success' => true,
-                'query'   => $query,
-                'results' => $results
-            ]);
+        if($request->has('so_to') && !empty($request->input('so_to'))){
+            $query->where('so_to', $request->input('so_to'));
+        }
+
+        $plotLists = $query->orderBy('id', 'desc')->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $plotLists,
+            'total' => $plotLists->count()
+        ]);
 
         } catch (\Exception $e) {
             \Log::error('Search error: ' . $e->getMessage());
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
+    }
+
+    public function export(Request $request)
+    {
+        $filters = $request->only(['search', 'xa']);
+        return Excel::download(new PlotListExport($filters), 'plot_list.xlsx');
     }
 
 }

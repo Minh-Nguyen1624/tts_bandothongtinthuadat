@@ -50,6 +50,17 @@ function Header({ isAuthenticated, user, handleLogout }) {
             >
               Quản lý thửa đất
             </Link>
+
+            <Link
+              to="/plot-list"
+              style={{
+                textDecoration: "none",
+                color: "#FFCC00",
+                fontWeight: "bold",
+              }}
+            >
+              Quản lý lô đất
+            </Link>
           </>
         )}
       </div>

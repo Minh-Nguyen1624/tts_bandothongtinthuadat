@@ -10,15 +10,21 @@ return new class extends Migration
     {
         Schema::create('land_plots', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('plot_lists_id')->nullable()->constrained('plot_lists')->onDelete('set null');
+            // $table->foreignId('plot_lists_id')->nullable()->constrained('plot_lists')->onDelete('set null');
+            $table->foreignId('plot_list_id')->nullable()->constrained('plot_lists')->onDelete('set null');
             $table->string('ten_chu')->nullable(); // chỉ lưu tên chủ
             $table->integer('so_to');
             $table->integer('so_thua');
             $table->string('ky_hieu_mdsd'); // ví dụ: ODT, ONT, CLN
             $table->string('phuong_xa');
             $table->enum('status', ['available', 'owned', 'suspended'])->default('available');
-            $table->timestamps();
+            // $table->geometry('geom',4326)->nullable();
+            $table->timestamps(); 
         });
+
+        // ✅ Tạo cột PostGIS geometry đúng chuẩn
+        DB::statement('ALTER TABLE land_plots ADD COLUMN geom geometry(Polygon, 4326)');
+
     }
 
     public function down(): void

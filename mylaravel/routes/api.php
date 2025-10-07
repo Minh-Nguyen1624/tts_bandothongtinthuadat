@@ -27,18 +27,32 @@ Route::prefix('auth')->group(function() {
     });
 });
 
+Route::prefix('users')->group(function () {
+    Route::get('/test-units', function() {
+        return response()->json(['success' => true, 'message' => 'Units OK'], 200);
+    });
+    // Route::post("/", [UsersController::class, 'store']);
+});
+
+
 // Public test routes
 Route::prefix('units')->group(function () {
     Route::get('/test-units', function() {
         return response()->json(['success' => true, 'message' => 'Units OK'], 200);
     });
+    // Route::post('/', [UnitController::class, 'store']);
+
 });
 
 Route::prefix('teams')->group(function() {
     Route::get('/test-teams', function() {
         return response()->json(['success' => true, 'message' => 'Teams OK'], 200);
     });
+        Route::post('/', [TeamController::class, 'store']);
+
 });
+
+
 
 // Test routes for debugging
 Route::get('/test-jwt', function () {
@@ -119,19 +133,22 @@ Route::middleware([AdminMiddleware::class])->group(function() {
 
     // PLotList Route - Admin CRUD
     Route::prefix('plotlists')->group(function(){
+        Route::get('/export/plot-list', [PlotListController::class, 'export'])->name('plotlist.export');
         Route::post('/', [PlotListController::class, 'store']);
-        // Route::get('/search', [PlotListController::class, 'search'])->name('search');
-        // Route::get("/{id}", [PlotListController::class, 'show']);
         Route::put("/{id}", [PlotListController::class, 'update']);
         Route::delete("/{id}", [PlotListController::class, 'destroy']);
+        Route::resource('plot-list', PlotListController::class);
     }); 
 
     Route::prefix('land_plots')->group(function(){
+        Route::get('/geometry', [LandPlotsController::class, 'getGeometry']);    
+        // Route::get('/{so_to}/{so_thua}/geometry', [LandPlotsController::class, 'getGeometryByParams']);
+        Route::get('/land-plots/geojson', [LandPlotsController::class, 'getGeoJson']);
+
         Route::post('/', [LandPlotsController::class, 'store']);
-        // Route::get('/search', [LandPlotsController::class, 'search']);
-        // Route::get("/{id}", [LandPlotsController::class, 'show']);
         Route::put("/{id}", [LandPlotsController::class, 'update']);
         Route::delete("/{id}", [LandPlotsController::class, 'destroy']);
+        Route::get('/test-geometry-steps', [LandPlotsController::class, 'testGeometryStepByStep']);
     });
 });
 

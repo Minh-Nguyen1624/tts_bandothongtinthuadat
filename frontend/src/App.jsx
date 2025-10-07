@@ -10,6 +10,7 @@ import Dashboard from "./Components/Dashboard.jsx";
 import HomePage from "./Components/HomePage.jsx";
 import Header from "./Components/Header.jsx";
 import LandPlotManagement from "./Components/LandPlotManagement.jsx";
+import PlotList from "./Components/PlotList.jsx";
 
 // Route bảo vệ
 const ProtectedRoute = ({ children }) => {
@@ -96,6 +97,14 @@ function App() {
           element={
             <ProtectedRoute>
               <LandPlotManagement />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/plot-list"
+          element={
+            <ProtectedRoute>
+              <PlotList />
             </ProtectedRoute>
           }
         />

@@ -11,8 +11,6 @@ use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Maatwebsite\Excel\Facades\Excel;
 
-
-
 class LandPlotsController extends Controller
 {
 
@@ -47,29 +45,85 @@ class LandPlotsController extends Controller
 
     public function store(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'ten_chu'      => 'nullable|string|max:100',
-            'so_to'        => 'required|integer',
-            'so_thua'      => 'required|integer',
-            'ky_hieu_mdsd' => 'required|string',
-            'phuong_xa'    => 'required|string|max:100',
-            'status'       => 'in:available,owned,suspended',
-            'plot_list_id' => 'nullable|exists:plot_list,id'
-        ]);
+            // ✅ Bước 1: Validate dữ liệu đầu vào
+            $validator = Validator::make($request->all(), [
+                'ten_chu'      => 'nullable|string|max:100',
+                'so_to'        => 'required|integer',
+                'so_thua'      => 'required|integer',
+                'ky_hieu_mdsd' => 'required|string',
+                'phuong_xa'    => 'required|string|max:100',
+                'status'       => 'in:available,owned,suspended',
+                'plot_list_id' => 'nullable|exists:plot_lists,id',
+                'geom'         => 'nullable|array' // geometry dạng GeoJSON
+            ]);
 
-        if ($validator->fails()) {
-            return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
-        }
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'errors' => $validator->errors()
+                ], 422);
+            }
 
-        $data = $validator->validated();
-        $landPlot = land_plots::create($data);
+            try {
+                DB::beginTransaction();
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Land plot created successfully',
-            'data'    => $landPlot
-        ], 201);
+                $data = $validator->validated();
+                $geojson = null;
+
+                // ✅ Bước 2: Chuyển geometry thành GeoJSON nếu có
+                if ($request->has('geom') && !empty($request->input('geom'))) {
+                    $geojson = json_encode($request->input('geom'));
+                    if ($geojson === false || $geojson === 'null') {
+                        throw new \Exception('Invalid GeoJSON data');
+                    }
+                    Log::info('📍 GeoJSON received: ' . $geojson);
+                }
+
+                // ✅ Bước 3: Tạo bản ghi cơ bản (chưa có geom)
+                $landPlotId = DB::table('land_plots')->insertGetId([
+                    'ten_chu'      => $data['ten_chu'] ?? null,
+                    'so_to'        => $data['so_to'],
+                    'so_thua'      => $data['so_thua'],
+                    'ky_hieu_mdsd' => $data['ky_hieu_mdsd'],
+                    'phuong_xa'    => $data['phuong_xa'],
+                    'status'       => $data['status'] ?? 'available',
+                    'plot_list_id' => $data['plot_list_id'] ?? null,
+                    'created_at'   => now(),
+                    'updated_at'   => now(),
+                ]);
+
+                // ✅ Bước 4: Cập nhật geometry (nếu có)
+                if ($geojson) {
+                    DB::statement('
+                        UPDATE land_plots
+                        SET geom = ST_SetSRID(ST_GeomFromGeoJSON(?), 4326)
+                        WHERE id = ?
+                    ', [$geojson, $landPlotId]);
+                }
+
+                // ✅ Bước 5: Lấy lại bản ghi vừa tạo
+                $landPlot = land_plots::find($landPlotId);
+
+                DB::commit();
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Land plot created successfully',
+                    'data'    => $landPlot
+                ], 201);
+
+            } catch (\Exception $e) {
+                DB::rollBack();
+                Log::error('❌ Land plot creation error: ' . $e->getMessage());
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to create land plot: ' . $e->getMessage()
+                ], 500);
+            }
     }
+
+
 
     public function show($id)
     {
@@ -77,56 +131,202 @@ class LandPlotsController extends Controller
         return response()->json(['success' => true, 'data' => $landPlot], 200);
     }
 
+    // public function update(Request $request, $id)
+    // {
+    //     // Chuyển $id thành số nguyên để tránh lỗi
+    //     $id = (int)$id;
+
+    //     $landPlot = land_plots::findOrFail($id);
+
+    //     $validator = Validator::make($request->all(), [
+    //         'ten_chu'      => 'nullable|string|max:100',
+    //         'so_to'        => 'nullable|integer',
+    //         'so_thua'      => 'nullable|integer',
+    //         'ky_hieu_mdsd' => 'nullable|string',
+    //         'phuong_xa'    => 'nullable|string|max:100',
+    //         'status'       => 'in:available,owned,suspended',
+    //         'geom'         => 'nullable|array' // Thêm validation cho geom
+    //     ]);
+
+    //     if ($validator->fails()) {
+    //         return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
+    //     }
+
+    //     try {
+    //         DB::beginTransaction();
+
+    //         $data = $validator->validated();
+
+    //         // ✅ Xử lý geometry nếu có
+    //         if ($request->has('geom') && !empty($request->input('geom'))) {
+    //             $geojson = json_encode($request->input('geom'));
+    //             if ($geojson === false || $geojson === 'null') {
+    //                 throw new \Exception('Invalid GeoJSON data');
+    //             }
+    //             Log::info('GeoJSON for update: ' . $geojson);
+
+    //             DB::update("
+    //                 UPDATE land_plots 
+    //                 SET ten_chu = ?, so_to = ?, so_thua = ?, ky_hieu_mdsd = ?, phuong_xa = ?, 
+    //                     status = ?, plot_list_id = ?, updated_at = ?, 
+    //                     geom = ST_SetSRID(ST_GeomFromGeoJSON(?), 4326)
+    //                 WHERE id = ?
+    //             ", [
+    //                 $data['ten_chu'] ?? $landPlot->ten_chu,
+    //                 $data['so_to'] ?? $landPlot->so_to,
+    //                 $data['so_thua'] ?? $landPlot->so_thua,
+    //                 $data['ky_hieu_mdsd'] ?? $landPlot->ky_hieu_mdsd,
+    //                 $data['phuong_xa'] ?? $landPlot->phuong_xa,
+    //                 $data['status'] ?? $landPlot->status,
+    //                 $data['plot_list_id'] ?? $landPlot->plot_list_id,
+    //                 now(),
+    //                 $geojson,
+    //                 $id
+    //             ]);
+
+    //             $landPlot = land_plots::find($id);
+    //             if (!$landPlot) {
+    //                 throw new \Exception('Failed to retrieve land plot after update');
+    //             }
+    //         } else {
+    //             // Logic cập nhật thông thường
+    //             if (array_key_exists('ten_chu', $data)) {
+    //                 if (!empty(trim($data['ten_chu'] ?? ''))) {
+    //                     $data['status'] = 'owned';
+    //                 } else {
+    //                     $data['status'] = 'available';
+    //                 }
+    //             }
+
+    //             $plotList = \App\Models\PlotList::where('so_to', $data['so_to'] ?? $landPlot->so_to)
+    //                 ->where('so_thua', $data['so_thua'] ?? $landPlot->so_thua)
+    //                 ->first();
+
+    //             if ($plotList) {
+    //                 $data['plot_list_id'] = $plotList->id;
+    //             } else {
+    //                 $data['plot_list_id'] = null;
+    //             }
+
+    //             $landPlot->update($data);
+    //         }
+
+    //         DB::commit();
+
+    //         return response()->json([
+    //             'success' => true,
+    //             'message' => 'Land plot updated successfully',
+    //             'data'    => $landPlot->fresh('plotList')
+    //         ]);
+
+    //     } catch (\Exception $e) {
+    //         DB::rollBack();
+    //         Log::error('Land plot update error: ' . $e->getMessage() . ' with id: ' . $id);
+    //         return response()->json([
+    //             'success' => false,
+    //             'message' => 'Failed to update land plot: ' . $e->getMessage()
+    //         ], 500);
+    //     }
+    // }
     public function update(Request $request, $id)
     {
+        $id = (int) $id;
         $landPlot = land_plots::findOrFail($id);
 
         $validator = Validator::make($request->all(), [
             'ten_chu'      => 'nullable|string|max:100',
             'so_to'        => 'nullable|integer',
             'so_thua'      => 'nullable|integer',
-            'ky_hieu_mdsd' => 'nullable|string',
+            'ky_hieu_mdsd' => 'nullable|string|max:50',
             'phuong_xa'    => 'nullable|string|max:100',
-            'status'       => 'in:available,owned,suspended'
+            'status'       => 'in:available,owned,suspended',
+            'geom'         => 'nullable|array',
         ]);
 
         if ($validator->fails()) {
             return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
         }
 
-        $data = $validator->validated();
+        try {
+            DB::beginTransaction();
 
-        // ✅ FIX: LOGIC ĐƠN GIẢN VÀ HIỆU QUẢ
-        if (array_key_exists('ten_chu', $data)) {
-            // Nếu ten_chu được gửi trong request (kể cả null)
-            if (!empty(trim($data['ten_chu'] ?? ''))) {
-                $data['status'] = 'owned';
-            } else {
-                $data['status'] = 'available';
+            $data = $validator->validated();
+
+            // ✅ Xử lý trạng thái tự động theo "ten_chu"
+            if (array_key_exists('ten_chu', $data)) {
+                $data['status'] = !empty(trim($data['ten_chu'] ?? '')) ? 'owned' : 'available';
             }
+
+            // ✅ Tìm plot_list_id tương ứng (nếu có so_to và so_thua)
+            $plotList = \App\Models\PlotList::where('so_to', $data['so_to'] ?? $landPlot->so_to)
+                ->where('so_thua', $data['so_thua'] ?? $landPlot->so_thua)
+                ->first();
+
+            $data['plot_list_id'] = $plotList ? $plotList->id : null;
+
+            // ✅ Xử lý GeoJSON nếu có
+            $geojson = null;
+            if (!empty($data['geom'])) {
+                $geojsonData = $data['geom'];
+                if (isset($geojsonData['type']) && $geojsonData['type'] === 'Polygon') {
+                    $geojson = json_encode($geojsonData, JSON_UNESCAPED_UNICODE);
+                } else if (isset($geojsonData[0][0]) && is_array($geojsonData[0][0])) {
+                    $geojson = json_encode([
+                        'type' => 'Polygon',
+                        'coordinates' => $geojsonData
+                    ], JSON_UNESCAPED_UNICODE);
+                } else if (isset($geojsonData[0]) && is_array($geojsonData[0])) {
+                    $geojson = json_encode([
+                        'type' => 'Polygon',
+                        'coordinates' => [$geojsonData]
+                    ], JSON_UNESCAPED_UNICODE);
+                } else {
+                    throw new \Exception('Invalid geometry format');
+                }
+            }
+
+            // ✅ Cập nhật dữ liệu
+            if ($geojson) {
+                DB::update("
+                    UPDATE land_plots 
+                    SET ten_chu = ?, so_to = ?, so_thua = ?, ky_hieu_mdsd = ?, phuong_xa = ?, 
+                        status = ?, plot_list_id = ?, updated_at = ?, 
+                        geom = ST_SetSRID(ST_GeomFromGeoJSON(?), 4326)
+                    WHERE id = ?
+                ", [
+                    $data['ten_chu'] ?? $landPlot->ten_chu,
+                    $data['so_to'] ?? $landPlot->so_to,
+                    $data['so_thua'] ?? $landPlot->so_thua,
+                    $data['ky_hieu_mdsd'] ?? $landPlot->ky_hieu_mdsd,
+                    $data['phuong_xa'] ?? $landPlot->phuong_xa,
+                    $data['status'] ?? $landPlot->status,
+                    $data['plot_list_id'],
+                    now(),
+                    $geojson,
+                    $id
+                ]);
+            } else {
+                $landPlot->update($data);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Land plot updated successfully',
+                'data'    => $landPlot->fresh('plotList')
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Land plot update error: ' . $e->getMessage() . ' with id: ' . $id);
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update land plot: ' . $e->getMessage()
+            ], 500);
         }
-        // Nếu không gửi ten_chu, giữ nguyên status
-
-        // ✅ Tự động tìm plot_list
-        $plotList = \App\Models\PlotList::where('so_to', $data['so_to'] ?? $landPlot->so_to)
-            ->where('so_thua', $data['so_thua'] ?? $landPlot->so_thua)
-            ->first();
-
-        if ($plotList) {
-            $data['plot_list_id'] = $plotList->id;
-        } else {
-            $data['plot_list_id'] = null;
-        }
-
-        // ✅ Cập nhật dữ liệu
-        $landPlot->update($data);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Land plot updated successfully',
-            'data'    => $landPlot->fresh('plotList')
-        ]);
     }
+
 
     public function destroy($id)
     {
@@ -174,35 +374,156 @@ class LandPlotsController extends Controller
             ], 500);
         }
     }
-
-    public function exportExcel(Request $request): BinaryFileResponse
+   
+    // Trong LandPlotsController, tạo method test mới
+    public function getGeometry(Request $request)
     {
-        $filters = [
-            'search' => $request->get('search', ''),
-            'phuong_xa' => $request->get('phuong_xa', ''),
-        ];
-
-        $filename = 'danh_sach_thua_dat_' . date('Y_m_d_His') . '.xlsx';
-
-        return Excel::download(new LandPlotsExport($filters), $filename);
-    }
-
-    /**
-     * Export selected land plots to Excel
-     */
-    public function exportSelectedExcel(Request $request): BinaryFileResponse
-    {
-        $request->validate([
-            'ids' => 'required|array',
-            'ids.*' => 'exists:land_plots,id'
+        $validator = Validator::make($request->all(), [
+            'so_to' => 'required|integer',
+            'so_thua' => 'required|integer',
         ]);
 
-        $filters = [
-            'ids' => $request->ids
-        ];
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors()
+            ], 422);
+        }
 
-        $filename = 'danh_sach_thua_dat_chon_' . date('Y_m_d_His') . '.xlsx';
+        try {
+            $soTo = $request->input('so_to');
+            $soThua = $request->input('so_thua');
 
-        return Excel::download(new LandPlotsExport($filters), $filename);
+            $result = DB::selectOne("
+                SELECT 
+                    id,
+                    so_to, 
+                    so_thua,
+                    ST_AsGeoJSON(geom) as geojson_data
+                FROM land_plots 
+                WHERE so_to = ? AND so_thua = ? AND geom IS NOT NULL
+                LIMIT 1
+            ", [$soTo, $soThua]);
+
+            if (!$result) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Không tìm thấy dữ liệu toạ độ'
+                ], 404);
+            }
+
+            $geometryData = json_decode($result->geojson_data ?? '', true) ?: [];
+            $coordinates = isset($geometryData['coordinates'][0]) ? $geometryData['coordinates'][0] : [];
+            $centerPoint = empty($coordinates) ? null : $this->calculateCenter($coordinates);
+
+            return response()->json([
+                'success' => true,
+                'geometry' => $geometryData, // Toàn bộ GeoJSON
+                'coordinates' => $coordinates, // Chỉ mảng tọa độ
+                'center_point' => $centerPoint, // Điểm trung tâm
+                'land_plot_info' => [
+                    'id' => $result->id,
+                    'so_to' => $result->so_to,
+                    'so_thua' => $result->so_thua
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Get geometry error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Lỗi khi lấy dữ liệu toạ độ'
+            ], 500);
+        }
     }
+
+    // Hàm tính điểm trung tâm
+    private function calculateCenter($coordinates)
+    {
+        if (empty($coordinates)) {
+            return null;
+        }
+
+        $sumLng = 0;
+        $sumLat = 0;
+        $count = count($coordinates);
+
+        foreach ($coordinates as $point) {
+            $sumLng += $point[0]; // longitude
+            $sumLat += $point[1]; // latitude
+        }
+
+        return [
+            'lng' => $sumLng / $count,
+            'lat' => $sumLat / $count
+        ];
+    }
+
+    public function getGeoJson()
+    {
+        try {
+            $plots = DB::table('land_plots as lp')
+                ->leftJoin('plot_lists as pl', function ($join) {
+                    $join->on(DB::raw('lp.so_to::text'), '=', DB::raw('pl.so_to::text'))
+                        ->on(DB::raw('lp.so_thua::text'), '=', DB::raw('pl.so_thua::text'));
+                })
+                ->select(
+                    'lp.id',
+                    'lp.plot_list_id',
+                    'lp.ten_chu',
+                    'lp.so_to',
+                    'lp.so_thua',
+                    'lp.ky_hieu_mdsd',
+                    'lp.phuong_xa',
+                    'lp.status',
+                    'lp.created_at',
+                    'lp.updated_at',
+                    DB::raw('ST_AsGeoJSON(lp.geom) as geometry')
+                )
+                ->whereNotNull('lp.geom')
+                ->get();
+
+            $features = [];
+
+            foreach ($plots as $plot) {
+                $geometry = json_decode($plot->geometry ?? '', true) ?: null;
+                if ($geometry === null) {
+                    continue; // Bỏ qua nếu geometry không hợp lệ
+                }
+
+                $properties = [
+                    'id' => $plot->id ?? null,
+                    'plot_list_id' => $plot->plot_list_id ?? null,
+                    'ten_chu' => $plot->ten_chu ?? null,
+                    'so_to' => $plot->so_to ?? null,
+                    'so_thua' => $plot->so_thua ?? null,
+                    'ky_hieu_mdsd' => $plot->ky_hieu_mdsd ?? null,
+                    'phuong_xa' => $plot->phuong_xa ?? null,
+                    'status' => $plot->status ?? null,
+                    'created_at' => $plot->created_at ?? null,
+                    'updated_at' => $plot->updated_at ?? null,
+                ];
+
+                $features[] = [
+                    'type' => 'Feature',
+                    'geometry' => $geometry,
+                    'properties' => $properties,
+                ];
+            }
+
+            return response()->json([
+                'type' => 'FeatureCollection',
+                'features' => $features,
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('GeoJSON export error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to export GeoJSON',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
 }

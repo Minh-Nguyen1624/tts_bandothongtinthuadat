@@ -30,6 +30,7 @@ const LandPlotManagement = () => {
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState(false); // Thêm state editing
   const [selectedPlot, setSelectedPlot] = useState(null); // Thêm state selected plot
+  const [plotListOptions, setPlotListOptions] = useState([]);
 
   const token = localStorage.getItem("token");
   const abortControllerRef = useRef(null);
@@ -66,7 +67,6 @@ const LandPlotManagement = () => {
       });
 
       const data = processApiResponse(response.data);
-      console.log("Processed data:", data);
 
       setLandPlots(data);
       setLastUpdated(new Date());
@@ -81,7 +81,71 @@ const LandPlotManagement = () => {
     }
   }, [token]);
 
+  const fetchPlotLists = useCallback(async () => {
+    if (!token) return;
+
+    try {
+      const response = await axios.get(`${API_URL}/api/plotlists`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setPlotListOptions(response.data.data || []);
+    } catch (error) {
+      console.error("Error fetching plot lists:", error);
+    }
+  }, [token]);
+
   // Hàm thêm thửa đất mới
+  // const fetchLandPlotAdd = useCallback(
+  //   async (formData) => {
+  //     if (!token) {
+  //       setError("Vui lòng đăng nhập trước");
+  //       return false;
+  //     }
+
+  //     setAdding(true);
+  //     setError(null);
+  //     setSuccess(null);
+
+  //     try {
+  //       console.log("Adding new land plot:", formData);
+  //       const response = await axios.post(
+  //         `${API_URL}/api/land_plots`,
+  //         formData,
+  //         {
+  //           headers: {
+  //             Authorization: `Bearer ${token}`,
+  //             "Content-Type": "application/json",
+  //           },
+  //         }
+  //       );
+
+  //       console.log("Add response:", response.data);
+
+  //       if (response.data.success === false) {
+  //         throw new Error(response.data.message);
+  //       }
+
+  //       // Thêm dữ liệu mới vào state
+  //       const newPlot = response.data.data || response.data;
+  //       setLandPlots((prev) => [newPlot, ...prev]);
+  //       setShowAddModal(false);
+  //       setSuccess("Thêm thửa đất thành công!");
+
+  //       return true;
+  //     } catch (error) {
+  //       console.error("Error adding land plot:", error);
+  //       const errorMessage =
+  //         error.response?.data?.message ||
+  //         error.message ||
+  //         "Có lỗi xảy ra khi thêm thửa đất";
+  //       setError(`Lỗi thêm thửa đất: ${errorMessage}`);
+  //       return false;
+  //     } finally {
+  //       setAdding(false);
+  //     }
+  //   },
+  //   [token]
+  // );
   const fetchLandPlotAdd = useCallback(
     async (formData) => {
       if (!token) {
@@ -95,6 +159,11 @@ const LandPlotManagement = () => {
 
       try {
         console.log("Adding new land plot:", formData);
+        console.log(
+          "Full formData to be sent:",
+          JSON.stringify(formData, null, 2)
+        );
+
         const response = await axios.post(
           `${API_URL}/api/land_plots`,
           formData,
@@ -121,8 +190,16 @@ const LandPlotManagement = () => {
         return true;
       } catch (error) {
         console.error("Error adding land plot:", error);
+        console.error("Error details:", {
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data,
+          headers: error.response?.headers,
+        });
+
         const errorMessage =
           error.response?.data?.message ||
+          error.response?.data?.error ||
           error.message ||
           "Có lỗi xảy ra khi thêm thửa đất";
         setError(`Lỗi thêm thửa đất: ${errorMessage}`);
@@ -271,7 +348,8 @@ const LandPlotManagement = () => {
   // Fetch data khi component mount
   useEffect(() => {
     fetchLandPlots();
-  }, [fetchLandPlots]);
+    fetchPlotLists(); // Thêm dòng này
+  }, [fetchLandPlots, fetchPlotLists]);
 
   // Xử lý khi phường/xã thay đổi
   useEffect(() => {
@@ -554,6 +632,7 @@ const LandPlotManagement = () => {
         onSubmit={handleAddSubmit}
         loading={adding}
         phuongXaOptions={phuongXaOptions}
+        plotListOptions={plotListOptions} // Thêm dòng này
       />
 
       {/* Edit Modal */}
@@ -563,6 +642,7 @@ const LandPlotManagement = () => {
         onSubmit={handleEditSubmit}
         loading={editing}
         phuongXaOptions={phuongXaOptions}
+        plotListOptions={plotListOptions} // Thêm dòng này
         plotData={selectedPlot}
         token={token}
       />

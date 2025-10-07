@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class land_plots extends Model
 {
+    protected $table = 'land_plots';
+    
     protected $fillable = [
         'ten_chu',
         'so_to',
@@ -13,16 +15,15 @@ class land_plots extends Model
         'ky_hieu_mdsd',
         'phuong_xa',
         'status',
-        'plot_list_id'
+        'plot_list_id',
+        // KHÔNG thêm 'geom' vào fillable vì nó là spatial type
     ];
 
-    // // Liên kết với plot_lists theo số tờ và số thửa
-    // public function plotList()
-    // {
-    //     return $this->hasOne(PlotList::class, 'so_to', 'so_to')
-    //                 ->whereColumn('plot_lists.so_thua', 'land_plots.so_thua');
-    // }
-    // Mỗi LandPlot thuộc về một PlotList
+    protected $casts = [
+        'so_to' => 'integer',
+        'so_thua' => 'integer',
+    ];
+
     public function plotList()
     {
         return $this->belongsTo(PlotList::class, 'plot_list_id', 'id');

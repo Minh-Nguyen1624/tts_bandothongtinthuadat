@@ -7,11 +7,20 @@ import {
   FaTag,
   FaRuler,
   FaStickyNote,
+  FaLayerGroup,
+  FaDrawPolygon,
 } from "react-icons/fa";
 import "../css/LandPlotAdd.css";
 
 const LandPlotAdd = memo(
-  ({ show, onClose, onSubmit, loading, phuongXaOptions }) => {
+  ({
+    show,
+    onClose,
+    onSubmit,
+    loading,
+    phuongXaOptions,
+    plotListOptions = [],
+  }) => {
     const [formData, setFormData] = useState({
       ten_chu: "",
       so_to: "",
@@ -20,10 +29,13 @@ const LandPlotAdd = memo(
       dien_tich: "",
       phuong_xa: "",
       ghi_chu: "",
+      plot_list_id: "",
+      geom: null,
     });
 
     const [errors, setErrors] = useState({});
     const [touched, setTouched] = useState({});
+    const [showGeometryInput, setShowGeometryInput] = useState(false);
 
     // Reset form when modal opens
     useEffect(() => {
@@ -36,9 +48,12 @@ const LandPlotAdd = memo(
           dien_tich: "",
           phuong_xa: "",
           ghi_chu: "",
+          plot_list_id: "",
+          geom: null,
         });
         setErrors({});
         setTouched({});
+        setShowGeometryInput(false);
       }
     }, [show]);
 
@@ -46,7 +61,11 @@ const LandPlotAdd = memo(
     const validateForm = useCallback((data) => {
       const newErrors = {};
 
-      if (data.ten_chu.trim() && data.ten_chu.trim().length > 100) {
+      // if (data.ten_chu.trim() && data.ten_chu.trim().length > 100) {
+      //   newErrors.ten_chu = "Tên chủ không được vượt quá 100 ký tự";
+      // }
+
+      if (data.ten_chu && data.ten_chu.trim().length > 100) {
         newErrors.ten_chu = "Tên chủ không được vượt quá 100 ký tự";
       }
 
@@ -77,6 +96,11 @@ const LandPlotAdd = memo(
 
       if (!data.phuong_xa.trim()) {
         newErrors.phuong_xa = "Vui lòng chọn phường/xã";
+      }
+
+      // Validation for geometry (optional)
+      if (data.geom && typeof data.geom !== "object") {
+        newErrors.geom = "Định dạng geometry không hợp lệ";
       }
 
       return newErrors;
@@ -115,6 +139,32 @@ const LandPlotAdd = memo(
       [touched, validateForm]
     );
 
+    // Handle geometry input
+    const handleGeometryChange = useCallback(
+      (e) => {
+        const { value } = e.target;
+        try {
+          const geomData = value ? JSON.parse(value) : null;
+          setFormData((prev) => ({
+            ...prev,
+            geom: geomData,
+          }));
+          if (errors.geom) {
+            setErrors((prev) => ({
+              ...prev,
+              geom: "",
+            }));
+          }
+        } catch (error) {
+          setErrors((prev) => ({
+            ...prev,
+            geom: "Định dạng JSON không hợp lệ",
+          }));
+        }
+      },
+      [errors.geom]
+    );
+
     // Handle blur
     const handleBlur = useCallback((e) => {
       const { name } = e.target;
@@ -122,6 +172,11 @@ const LandPlotAdd = memo(
         ...prev,
         [name]: true,
       }));
+    }, []);
+
+    // Toggle geometry input visibility
+    const toggleGeometryInput = useCallback(() => {
+      setShowGeometryInput((prev) => !prev);
     }, []);
 
     // Handle submit
@@ -143,7 +198,17 @@ const LandPlotAdd = memo(
           return;
         }
 
-        await onSubmit(formData);
+        // Prepare data for submission
+        const submitData = {
+          ...formData,
+          so_to: parseInt(formData.so_to),
+          so_thua: parseInt(formData.so_thua),
+          dien_tich: parseFloat(formData.dien_tich.replace(",", ".")),
+          plot_list_id: formData.plot_list_id || null,
+          geom: formData.geom || null,
+        };
+
+        await onSubmit(submitData);
       },
       [formData, onSubmit, validateForm]
     );
@@ -152,7 +217,7 @@ const LandPlotAdd = memo(
 
     return (
       <div className="blue-modal-overlay">
-        <div className="blue-modal-content">
+        <div className="blue-modal-content large-modal">
           {/* Header */}
           <div className="blue-modal-header">
             <h2 className="blue-modal-title">Thêm Thửa Đất Mới</h2>
@@ -173,7 +238,6 @@ const LandPlotAdd = memo(
                 <label className="blue-field-label">
                   <FaUser className="label-icon" />
                   Tên chủ
-                  {/* <span className="required-asterisk">*</span> */}
                 </label>
                 <input
                   type="text"
@@ -258,7 +322,7 @@ const LandPlotAdd = memo(
                     errors.ky_hieu_mdsd && touched.ky_hieu_mdsd ? "error" : ""
                   }`}
                   disabled={loading}
-                  maxLength={4}
+                  maxLength={40}
                 />
                 {errors.ky_hieu_mdsd && touched.ky_hieu_mdsd && (
                   <span className="blue-error-message">
@@ -294,26 +358,108 @@ const LandPlotAdd = memo(
                   <FaMap className="label-icon" />
                   Phường/Xã <span className="required-asterisk">*</span>
                 </label>
-                <select
+                <input
+                  type="text"
                   name="phuong_xa"
                   value={formData.phuong_xa}
                   onChange={handleInputChange}
                   onBlur={handleBlur}
-                  className={`blue-select ${
+                  placeholder="Nhập Phường/Xã"
+                  className={`blue-input ${
                     errors.phuong_xa && touched.phuong_xa ? "error" : ""
                   }`}
                   disabled={loading}
-                >
-                  <option value="">Chọn Phường/Xã</option>
-                  {phuongXaOptions.map((px) => (
-                    <option key={px} value={px}>
-                      {px}
-                    </option>
-                  ))}
-                </select>
+                />
                 {errors.phuong_xa && touched.phuong_xa && (
                   <span className="blue-error-message">{errors.phuong_xa}</span>
                 )}
+              </div>
+            </div>
+
+            {/* Third Row - Plot List ID and Geometry */}
+            <div className="form-row">
+              <div className="form-group">
+                <label className="blue-field-label">
+                  <FaLayerGroup className="label-icon" />
+                  Danh sách thửa đất
+                </label>
+
+                <select
+                  name="plot_list_id"
+                  value={formData.plot_list_id}
+                  onChange={handleInputChange}
+                  onBlur={handleBlur}
+                  className="blue-input blue-select"
+                  disabled={loading}
+                >
+                  <option value="">Chọn danh sách thửa đất</option>
+                  {plotListOptions && plotListOptions.length > 0 ? (
+                    plotListOptions.map((option) => {
+                      // console.log("Option:", option); // Debug từng option
+                      return (
+                        <option key={option.id} value={option.id}>
+                          {option.name ||
+                            option.ten_danh_sach ||
+                            `Danh sách ${option.organization_name}`}
+                        </option>
+                      );
+                    })
+                  ) : (
+                    <option value="" disabled>
+                      Không có danh sách nào
+                    </option>
+                  )}
+                </select>
+                <div className="input-hint">
+                  Liên kết với danh sách thửa đất (tùy chọn)
+                </div>
+              </div>
+
+              <div className="form-group full-width">
+                <div className="geometry-section">
+                  <div className="geometry-header">
+                    <label className="blue-field-label">
+                      <FaDrawPolygon className="label-icon" />
+                      Dữ liệu hình học (Geometry)
+                    </label>
+                    <button
+                      type="button"
+                      onClick={toggleGeometryInput}
+                      className="geometry-toggle-button"
+                    >
+                      {showGeometryInput ? "Ẩn" : "Hiện"} Geometry
+                    </button>
+                  </div>
+
+                  {showGeometryInput && (
+                    <div className="geometry-input-container">
+                      <textarea
+                        name="geom"
+                        value={
+                          formData.geom
+                            ? JSON.stringify(formData.geom, null, 2)
+                            : ""
+                        }
+                        onChange={handleGeometryChange}
+                        onBlur={handleBlur}
+                        placeholder='Nhập dữ liệu GeoJSON (VD: {"type": "Polygon", "coordinates": [...]})'
+                        className={`blue-textarea geometry-textarea ${
+                          errors.geom && touched.geom ? "error" : ""
+                        }`}
+                        disabled={loading}
+                        rows={6}
+                      />
+                      {errors.geom && touched.geom && (
+                        <span className="blue-error-message">
+                          {errors.geom}
+                        </span>
+                      )}
+                      <div className="input-hint">
+                        Nhập dữ liệu hình học dạng GeoJSON (tùy chọn)
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -334,30 +480,6 @@ const LandPlotAdd = memo(
                   disabled={loading}
                   rows={3}
                 />
-              </div>
-            </div>
-
-            {/* Creator Info - Readonly */}
-            <div className="info-section">
-              <div className="info-row">
-                <div className="info-item">
-                  <label className="info-label">Người tạo:</label>
-                  <span className="info-value">-</span>
-                </div>
-                <div className="info-item">
-                  <label className="info-label">Ngày tạo:</label>
-                  <span className="info-value">-</span>
-                </div>
-              </div>
-              <div className="info-row">
-                <div className="info-item">
-                  <label className="info-label">Người cập nhật:</label>
-                  <span className="info-value">-</span>
-                </div>
-                <div className="info-item">
-                  <label className="info-label">Ngày cập nhật:</label>
-                  <span className="info-value">-</span>
-                </div>
               </div>
             </div>
 
