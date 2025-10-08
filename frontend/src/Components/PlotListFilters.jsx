@@ -63,7 +63,7 @@ const PlotListFilters = ({
         </select>
       </div>
 
-      <div className="filters-right">
+      <div className="filters-right" style={{ display: "contents" }}>
         <button
           className="add-button"
           onClick={() => onOpenModal()} // QUAN TRỌNG: Không truyền tham số

@@ -1,5 +1,5 @@
 import React from "react";
-import { FaFilter, FaPlusCircle, FaSearch } from "react-icons/fa";
+import { FaFilter, FaPlusCircle, FaSearch, FaFileExcel } from "react-icons/fa";
 
 const LandPlotFilters = ({
   search,
@@ -11,6 +11,8 @@ const LandPlotFilters = ({
   onPerPageChange,
   onClearSearch,
   onOpenAddModal,
+  onExportExcel,
+  exporting,
 }) => {
   return (
     <div
@@ -122,6 +124,25 @@ const LandPlotFilters = ({
           flexFlow: "column",
         }}
       >
+        <button
+          onClick={onExportExcel}
+          disabled={exporting}
+          className="btn-excel"
+          title="Xuất file Excel"
+        >
+          {exporting ? (
+            <>
+              <div className="button-loading-spinner"></div>
+              Đang xuất...
+            </>
+          ) : (
+            <>
+              <FaFileExcel className="button-icon" />
+              Xuất Excel
+            </>
+          )}
+        </button>
+
         <button
           onClick={onOpenAddModal}
           style={{

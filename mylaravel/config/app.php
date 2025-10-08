@@ -127,15 +127,12 @@ return [
     'JWTFactory' => PHPOpenSourceSaver\JWTAuth\Facades\JWTFactory::class,
 
     // 'providers' => [
-    // // ... các providers khác
-    
     //     Maatwebsite\Excel\ExcelServiceProvider::class,
     // ],
 
     // 'aliases' => [
-    // // ... các aliases khác
-    
-    //   'Excel' => Maatwebsite\Excel\Facades\Excel::class,
+    //     'Excel' => Maatwebsite\Excel\Facades\Excel::class,
     // ],
+
 
 ];

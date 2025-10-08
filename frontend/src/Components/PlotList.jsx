@@ -66,105 +66,55 @@ const PlotList = () => {
       setError("Vui lòng đăng nhập trước");
       return;
     }
+
     setExporting(true);
     setError(null);
     setSuccess(null);
 
     try {
-      const params = new URLSearchParams();
-      if (search) params.append("search", search);
-      if (xa) params.append("xa", xa);
-
-      const response = await axios.get(
-        `${API_URL}/plotlists/export/plot-list?${params.toString()}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      if (!response.data.success) {
-        throw new Error(response.data.message);
-      }
-
-      const blog = await response.blog();
-      const url = window.URL.createObjectURL(new Blob([blog]));
-      const link = document.createElement("a");
-      link.style.display = "none";
-      link.href = url;
-
-      // Lấy filename từ header hoặc tự tạo
-      const contentDisposition = response.headers.get("Content-Disposition");
-      let filename = `danh-sach-thua-dat-${
-        new Date().toISOString().split("T")[0]
-      }.xlsx`;
-      if (contentDisposition) {
-        const regex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
-        const matches = regex.exec(contentDisposition);
-        if (matches != null && matches[1]) {
-          filename = matches[1].replace(/['"]/g, "");
-        }
-      }
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
-      setError("Lỗi khi tải dữ liệu");
-    }
-  }, [token, search, xa]);
-
-  const handleExportExcelAxios = useCallback(async () => {
-    if (!token) {
-      setError("Vui lòng đăng nhập trước");
-      return;
-    }
-
-    setExporting(true);
-    setError(null);
-
-    try {
       const response = await axios.get(
         `${API_URL}/plotlists/export/plot-list`,
         {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          params: {
-            search: search,
-            xa: xa,
-          },
-          responseType: "blob", // Quan trọng: nhận dạng blob
+          headers: { Authorization: `Bearer ${token}` },
+          params: { search, xa },
+          responseType: "blob",
         }
       );
 
-      // Tạo URL và download
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement("a");
-      link.href = url;
+      // Tạo blob link để tải file
+      const blob = new Blob([response.data], {
+        type:
+          response.headers["content-type"] ||
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+      const url = window.URL.createObjectURL(blob);
 
-      // Lấy filename từ response header
-      const contentDisposition = response.headers["content-disposition"];
-      let filename = `danh-sach-thua-dat-${
+      // Tự động đặt tên file nếu server có header
+      let filename = `quan-ly-lo-dat-${
         new Date().toISOString().split("T")[0]
       }.xlsx`;
-
+      const contentDisposition = response.headers["content-disposition"];
       if (contentDisposition) {
-        const filenameMatch = contentDisposition.match(/filename="(.+)"/);
-        if (filenameMatch) {
-          filename = filenameMatch[1];
-        }
+        const filenameMatch = contentDisposition.match(/filename="?(.+)"?/);
+        if (filenameMatch) filename = filenameMatch[1];
       }
 
+      const link = document.createElement("a");
+      link.href = url;
       link.setAttribute("download", filename);
       document.body.appendChild(link);
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
 
-      setSuccess("Xuất Excel thành công!");
+      setSuccess("Xuất file Excel thành công!");
     } catch (error) {
-      console.error("Export error:", error);
-      setError("Lỗi xuất Excel: " + error.message);
+      console.error("Error exporting Excel:", error);
+      const message =
+        error.response?.data?.message ||
+        error.message ||
+        "Có lỗi xảy ra khi xuất file Excel";
+      setError(`Lỗi xuất file: ${message}`);
     } finally {
       setExporting(false);
     }
@@ -606,11 +556,6 @@ const PlotList = () => {
     }
   }, [success, error]);
 
-  // // Debug selectedPlot
-  // useEffect(() => {
-  //   console.log("selectedPlot changed:", selectedPlot);
-  // }, [selectedPlot]);
-
   return (
     <div className="plotlist-management">
       {/* Header */}
@@ -646,7 +591,6 @@ const PlotList = () => {
         onClearSearch={handleClearSearch}
         onOpenModal={handleOpenModal}
         onExportExcel={handleExportExcel}
-        onExportExcelAxios={handleExportExcelAxios}
         exporting={exporting}
       />
 

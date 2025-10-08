@@ -144,7 +144,7 @@ Route::middleware([AdminMiddleware::class])->group(function() {
         Route::get('/geometry', [LandPlotsController::class, 'getGeometry']);    
         // Route::get('/{so_to}/{so_thua}/geometry', [LandPlotsController::class, 'getGeometryByParams']);
         Route::get('/land-plots/geojson', [LandPlotsController::class, 'getGeoJson']);
-
+        Route::get('/export/land-plots', [LandPlotsController::class, 'export'])->name('landplots.export');
         Route::post('/', [LandPlotsController::class, 'store']);
         Route::put("/{id}", [LandPlotsController::class, 'update']);
         Route::delete("/{id}", [LandPlotsController::class, 'destroy']);

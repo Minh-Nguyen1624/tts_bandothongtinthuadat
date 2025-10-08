@@ -1,3 +1,28 @@
+/* Optimized CSS với variables và modern features */
+:root {
+  --primary-blue: #1976d2;
+  --primary-light: #42a5f5;
+  --primary-lighter: #e3f2fd;
+  --primary-lightest: #f8fdff;
+  --success-color: #2e7d32;
+  --error-color: #d32f2f;
+  --warning-color: #ed6c02;
+  --text-primary: #1a237e;
+  --text-secondary: #546e7a;
+  --text-light: #78909c;
+  --border-light: #e3f2fd;
+  --border-medium: #bbdefb;
+  --shadow-light: 0 2px 12px rgba(25, 118, 210, 0.08);
+  --shadow-medium: 0 4px 20px rgba(25, 118, 210, 0.12);
+  --shadow-heavy: 0 8px 32px rgba(25, 118, 210, 0.15);
+  --radius-small: 8px;
+  --radius-medium: 12px;
+  --radius-large: 16px;
+  --transition-fast: 0.2s ease;
+  --transition-normal: 0.3s ease;
+  --transition-slow: 0.5s ease;
+}
+
 .homepage {
   min-height: 55vh;
   background: #f9fafb;
@@ -313,5 +338,62 @@
 
   .data-table {
     min-width: 600px;
+  }
+}
+
+.btn-excel {
+  background: linear-gradient(135deg, #1d6f42 0%, #2e8b57 100%);
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.3s ease;
+  margin-left: 10px;
+  border-radius: var(--radius-medium);
+  height: 44px;
+}
+
+.btn-excel:hover:not(:disabled) {
+  background: linear-gradient(135deg, #2e8b57 0%, #3cb371 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(46, 139, 87, 0.3);
+}
+
+.btn-excel:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-excel .button-icon {
+  font-size: 16px;
+}
+
+/* Loading spinner cho export */
+.btn-excel .button-loading-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid transparent;
+  border-top: 2px solid #ffffff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@media (max-width: 768px) {
+  .actions-section {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .btn-excel {
+    margin-left: 0;
+    width: 100%;
+    justify-content: center;
   }
 }

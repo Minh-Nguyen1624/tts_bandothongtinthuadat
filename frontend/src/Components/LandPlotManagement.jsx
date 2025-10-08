@@ -31,6 +31,7 @@ const LandPlotManagement = () => {
   const [editing, setEditing] = useState(false); // Thêm state editing
   const [selectedPlot, setSelectedPlot] = useState(null); // Thêm state selected plot
   const [plotListOptions, setPlotListOptions] = useState([]);
+  const [exporting, setExporting] = useState(false);
 
   const token = localStorage.getItem("token");
   const abortControllerRef = useRef(null);
@@ -94,58 +95,67 @@ const LandPlotManagement = () => {
     }
   }, [token]);
 
+  const handleExportExcel = useCallback(async () => {
+    if (!token) {
+      setError("Vui lòng đăng nhập trước");
+      return;
+    }
+
+    setExporting(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const response = await axios.get(
+        `${API_URL}/api/land_plots/export/land-plots`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          params: { search, phuong_xa: phuongXa },
+          responseType: "blob",
+        }
+      );
+
+      // Tạo blob link để tải file
+      const blob = new Blob([response.data], {
+        type:
+          response.headers["content-type"] ||
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+
+      const url = window.URL.createObjectURL(blob);
+
+      // Tự động đặt tên file nếu server có header
+      let filename = `quan-ly-lo-dat-${
+        new Date().toISOString().split("T")[0]
+      }.xlsx`;
+      const contentDisposition = response.headers["content-disposition"];
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="?(.+)"?/);
+        if (filenameMatch) filename = filenameMatch[1];
+      }
+
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+      setSuccess("Xuất file Excel thành công!");
+    } catch (error) {
+      console.error("Error exporting Excel:", error);
+      const message =
+        error.response?.data?.message ||
+        error.message ||
+        "Có lỗi xảy ra khi xuất file Excel";
+      setError(`Lỗi xuất file: ${message}`);
+    } finally {
+      setExporting(false);
+    }
+  }, [token, search, phuongXa]);
+
   // Hàm thêm thửa đất mới
-  // const fetchLandPlotAdd = useCallback(
-  //   async (formData) => {
-  //     if (!token) {
-  //       setError("Vui lòng đăng nhập trước");
-  //       return false;
-  //     }
-
-  //     setAdding(true);
-  //     setError(null);
-  //     setSuccess(null);
-
-  //     try {
-  //       console.log("Adding new land plot:", formData);
-  //       const response = await axios.post(
-  //         `${API_URL}/api/land_plots`,
-  //         formData,
-  //         {
-  //           headers: {
-  //             Authorization: `Bearer ${token}`,
-  //             "Content-Type": "application/json",
-  //           },
-  //         }
-  //       );
-
-  //       console.log("Add response:", response.data);
-
-  //       if (response.data.success === false) {
-  //         throw new Error(response.data.message);
-  //       }
-
-  //       // Thêm dữ liệu mới vào state
-  //       const newPlot = response.data.data || response.data;
-  //       setLandPlots((prev) => [newPlot, ...prev]);
-  //       setShowAddModal(false);
-  //       setSuccess("Thêm thửa đất thành công!");
-
-  //       return true;
-  //     } catch (error) {
-  //       console.error("Error adding land plot:", error);
-  //       const errorMessage =
-  //         error.response?.data?.message ||
-  //         error.message ||
-  //         "Có lỗi xảy ra khi thêm thửa đất";
-  //       setError(`Lỗi thêm thửa đất: ${errorMessage}`);
-  //       return false;
-  //     } finally {
-  //       setAdding(false);
-  //     }
-  //   },
-  //   [token]
-  // );
   const fetchLandPlotAdd = useCallback(
     async (formData) => {
       if (!token) {
@@ -593,6 +603,8 @@ const LandPlotManagement = () => {
         onPerPageChange={handlePerPageChange}
         onClearSearch={handleClearSearch}
         onOpenAddModal={handleOpenAddModal}
+        onExportExcel={handleExportExcel}
+        exporting={exporting}
       />
 
       {/* Search Status */}

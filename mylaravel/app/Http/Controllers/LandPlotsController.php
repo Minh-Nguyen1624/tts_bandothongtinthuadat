@@ -526,4 +526,10 @@ class LandPlotsController extends Controller
         }
     }
 
+    public function export(Request $request)
+    {
+        $filters = $request->only(['search', 'plot_list_id']);
+        $fileName = 'land_plots_' . date('Ymd_His') . '.xlsx';
+        return Excel::download(new LandPlotsExport($filters), $fileName);
+    }
 }
