@@ -11,7 +11,7 @@ const LandPlotPagination = ({
 }) => {
   const paginationButtons = [
     {
-      label: "⟪",
+      label: "<",
       page: 1,
       title: "Về trang đầu",
       disabled: currentPage === 1,
@@ -36,7 +36,7 @@ const LandPlotPagination = ({
       disabled: currentPage === totalPages,
     },
     {
-      label: "⟫",
+      label: ">",
       page: totalPages,
       title: "Đến trang cuối",
       disabled: currentPage === totalPages,

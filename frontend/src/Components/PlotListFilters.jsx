@@ -1,4 +1,3 @@
-import React from "react";
 import { FaSearch, FaPlus, FaTimes, FaFileExcel } from "react-icons/fa";
 
 const PlotListFilters = ({

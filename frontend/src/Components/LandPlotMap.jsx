@@ -586,7 +586,7 @@ const LandPlotMap = ({ geom, plotInfo = {} }) => {
         </div>
       )}
 
-      <style jsx>{`
+      {/* <style jsx>{`
         @keyframes spin {
           0% {
             transform: rotate(0deg);
@@ -595,7 +595,7 @@ const LandPlotMap = ({ geom, plotInfo = {} }) => {
             transform: rotate(360deg);
           }
         }
-      `}</style>
+      `}</style> */}
     </div>
   );
 };

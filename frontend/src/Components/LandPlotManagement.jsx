@@ -1,6 +1,13 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+} from "react";
 import axios from "axios";
 import "../css/HomePage.css";
+import "../css/PlotList.css";
 import LandPlotHeader from "../Components/LandPlotHeader";
 import LandPlotFilters from "../Components/LandPlotFilters";
 import LandPlotTable from "../Components/LandPlotTable";
@@ -125,7 +132,7 @@ const LandPlotManagement = () => {
       const url = window.URL.createObjectURL(blob);
 
       // Tự động đặt tên file nếu server có header
-      let filename = `quan-ly-lo-dat-${
+      let filename = `quan-ly-thua-dat-${
         new Date().toISOString().split("T")[0]
       }.xlsx`;
       const contentDisposition = response.headers["content-disposition"];
@@ -662,4 +669,4 @@ const LandPlotManagement = () => {
   );
 };
 
-export default LandPlotManagement;
+export default React.memo(LandPlotManagement);

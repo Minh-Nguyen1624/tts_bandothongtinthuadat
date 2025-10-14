@@ -235,6 +235,11 @@ const TableCell = ({ children, align = "left", ...props }) => (
       textAlign: align,
       border: "1px solid #dee2e6",
       color: "#000",
+      padding: "20px 16px",
+      borderBottom: "1px solid var(--border-light)",
+      color: "var(--text-primary)",
+      fontWeight: 500,
+      transition: "all var(--transition-fast)",
     }}
     {...props}
   >

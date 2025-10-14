@@ -1,4 +1,3 @@
-import React from "react";
 import { FaFilter, FaPlusCircle, FaSearch, FaFileExcel } from "react-icons/fa";
 
 const LandPlotFilters = ({
@@ -15,63 +14,60 @@ const LandPlotFilters = ({
   exporting,
 }) => {
   return (
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: "15px",
-        flexWrap: "wrap",
-        gap: "10px",
-      }}
-    >
-      {/* Filters */}
+    <div className="plotlist-filters">
+      {/* Left side - Filters and pagination */}
       <div
         style={{
           display: "flex",
-          alignItems: "center",
+          flexDirection: "column",
           gap: "10px",
-          //   flexWrap: "wrap",
-          flexFlow: "column",
+          flex: 1,
         }}
       >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-          }}
-        >
-          <button
-            style={{
-              fontSize: "14px",
-              color: "#000",
-              padding: "6px 12px",
-              background: "white",
-              border: "1px solid #ccc",
-              borderRadius: "4px",
-              height: "34px",
-              display: "flex",
-              alignItems: "center",
-              gap: "5px",
-              cursor: "pointer",
-            }}
-          >
-            <FaFilter /> Bộ lọc
-          </button>
-
+        {/* Filter row */}
+        <div className="filters-left">
+          <div className="search-container" style={{ position: "relative" }}>
+            <FaSearch className="search-icon" />
+            <input
+              className="search-input"
+              type="text"
+              value={search}
+              onChange={(e) => onSearchChange(e.target.value)}
+              placeholder="Tìm kiếm"
+            />
+            <div
+              style={{
+                position: "absolute",
+                right: "8px",
+                top: "50%",
+                transform: "translateY(-50%)",
+                display: "flex",
+                alignItems: "center",
+                gap: "5px",
+              }}
+            >
+              {search && (
+                <button
+                  onClick={onClearSearch}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "#999",
+                    cursor: "pointer",
+                    fontSize: "12px",
+                    padding: "2px",
+                  }}
+                  title="Xóa tìm kiếm"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          </div>
           <select
             value={phuongXa}
             onChange={(e) => onPhuongXaChange(e.target.value)}
-            style={{
-              padding: "6px 12px",
-              borderRadius: "4px",
-              border: "1px solid #ccc",
-              backgroundColor: "white",
-              minWidth: "150px",
-              fontSize: "14px",
-              height: "34px",
-            }}
+            className="filter-select"
           >
             <option value="">Phường/xã</option>
             {phuongXaOptions.map((px) => (
@@ -80,141 +76,84 @@ const LandPlotFilters = ({
               </option>
             ))}
           </select>
-        </div>
 
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-            fontSize: "14px",
-            color: "#000",
-            position: "relative",
-            right: "32px",
-          }}
-        >
-          <span>Hiển thị:</span>
-          <select
-            value={perPage}
-            onChange={(e) => onPerPageChange(parseInt(e.target.value))}
+          {/* Pagination row */}
+          <div
             style={{
-              padding: "4px 8px",
-              border: "1px solid #ccc",
-              borderRadius: "4px",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
               fontSize: "14px",
-              height: "28px",
+              color: "#000",
             }}
           >
-            {[10, 20, 30, 40, 50, 100].map((n) => (
-              <option key={n} value={n}>
-                {n}
-              </option>
-            ))}
-          </select>
-          <span>mục/trang</span>
+            <span
+              style={{
+                fontSize: "0.875em",
+                fontWeight: "500",
+                marginRight: "10px",
+              }}
+            >
+              Hiển thị:
+            </span>
+            <select
+              value={perPage}
+              onChange={(e) => onPerPageChange(parseInt(e.target.value))}
+              className="filter-select"
+            >
+              {[10, 20, 30, 40, 50, 100].map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+            <span
+              style={{
+                fontSize: "0.875em",
+                fontWeight: "500",
+                marginRight: "10px",
+              }}
+            >
+              mục/trang
+            </span>
+          </div>
         </div>
       </div>
 
-      {/* Actions */}
+      {/* Right side - Search and actions */}
       <div
         style={{
           display: "flex",
-          alignItems: "end",
+          flexDirection: "column",
+          alignItems: "flex-end",
           gap: "10px",
-          flexFlow: "column",
         }}
       >
-        <button
-          onClick={onExportExcel}
-          disabled={exporting}
-          className="btn-excel"
-          title="Xuất file Excel"
-        >
-          {exporting ? (
-            <>
-              <div className="button-loading-spinner"></div>
-              Đang xuất...
-            </>
-          ) : (
-            <>
-              <FaFileExcel className="button-icon" />
-              Xuất Excel
-            </>
-          )}
-        </button>
+        {/* Action buttons */}
+        <div className="filters-right" style={{ display: "flex", gap: "8px" }}>
+          <button onClick={onOpenAddModal} className="add-button">
+            <FaPlusCircle />
+            Thêm Thửa Đất
+          </button>
 
-        <button
-          onClick={onOpenAddModal}
-          style={{
-            padding: "6px 12px",
-            borderRadius: "4px",
-            border: "1px solid #007bff",
-            background: "#007bff",
-            color: "white",
-            cursor: "pointer",
-            fontWeight: "bold",
-            fontSize: "14px",
-            height: "34px",
-            display: "flex",
-            alignItems: "center",
-            gap: "5px",
-          }}
-        >
-          <FaPlusCircle />
-        </button>
-
-        {/* Search Box */}
-        <div style={{ position: "relative" }}>
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => onSearchChange(e.target.value)}
-            style={{
-              padding: "6px 35px 6px 12px",
-              border: "1px solid #ccc",
-              borderRadius: "4px",
-              fontSize: "14px",
-              height: "34px",
-              width: "250px",
-              transition: "border-color 0.2s",
-              textTransform: "none",
-            }}
-            placeholder="Tìm kiếm"
-            onFocus={(e) => (e.target.style.borderColor = "#007bff")}
-            onBlur={(e) => (e.target.style.borderColor = "#ccc")}
-            autoCapitalize="none"
-            autoCorrect="off"
-            spellCheck="false"
-          />
-          <div
-            style={{
-              position: "absolute",
-              right: "8px",
-              top: "50%",
-              transform: "translateY(-50%)",
-              display: "flex",
-              alignItems: "center",
-              gap: "5px",
-            }}
+          <button
+            onClick={onExportExcel}
+            disabled={exporting}
+            className="btn-excel"
+            title="Xuất file Excel"
           >
-            {search && (
-              <button
-                onClick={onClearSearch}
-                style={{
-                  background: "none",
-                  border: "none",
-                  color: "#999",
-                  cursor: "pointer",
-                  fontSize: "12px",
-                  padding: "2px",
-                }}
-                title="Xóa tìm kiếm"
-              >
-                ✕
-              </button>
+            {exporting ? (
+              <>
+                <div className="button-loading-spinner"></div>
+                Đang xuất...
+              </>
+            ) : (
+              <>
+                <FaFileExcel />
+                Xuất Excel
+              </>
             )}
-            <FaSearch style={{ color: "#666", fontSize: "14px" }} />
-          </div>
+          </button>
         </div>
       </div>
     </div>

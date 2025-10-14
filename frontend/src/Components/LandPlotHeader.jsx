@@ -1,5 +1,5 @@
 import React from "react";
-import { FaSync } from "react-icons/fa";
+import { FaSync, FaList } from "react-icons/fa";
 
 const LandPlotHeader = ({ lastUpdated, loading, onRefresh }) => {
   const formatLastUpdated = () => {
@@ -12,50 +12,38 @@ const LandPlotHeader = ({ lastUpdated, loading, onRefresh }) => {
       style={{
         display: "flex",
         justifyContent: "space-between",
-        alignItems: "flex-start",
-        marginBottom: "20px",
+        alignItems: "center",
+        // marginBottom: "15px",
+        // padding: "0",
       }}
+      className="plotlist-header"
     >
-      <h1
-        style={{
-          color: "#000",
-          fontWeight: "bold",
-          fontSize: "24px",
-          margin: 0,
-        }}
-      >
-        Danh sách thửa đất
-      </h1>
+      <div className="header-title">
+        <FaList className="title-icon" />
+        <h1>Danh sách thửa đất</h1>
+      </div>
 
       <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "10px",
-          fontSize: "12px",
-          color: "#666",
-        }}
+        className="last-updated"
+        style={{ display: "flex", alignItems: "center" }}
       >
-        {lastUpdated && <span>Cập nhật: {formatLastUpdated()}</span>}
+        <span
+          style={{
+            fontSize: "0.875em",
+            fontWeight: "500",
+            marginRight: "10px",
+          }}
+        >
+          Cập nhật: {formatLastUpdated()}
+        </span>
         <button
           onClick={onRefresh}
           disabled={loading}
-          style={{
-            padding: "6px 12px",
-            background: "transparent",
-            border: "1px solid #007bff",
-            color: "#007bff",
-            borderRadius: "4px",
-            cursor: loading ? "not-allowed" : "pointer",
-            display: "flex",
-            alignItems: "center",
-            gap: "5px",
-            fontSize: "12px",
-          }}
           title="Làm mới dữ liệu"
+          className="refresh-button"
         >
           <FaSync className={loading ? "spinning" : ""} />
-          {loading ? "Đang tải..." : "Làm mới"}
+          Làm mới
         </button>
       </div>
     </div>
