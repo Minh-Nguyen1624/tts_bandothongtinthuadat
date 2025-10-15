@@ -9,11 +9,11 @@ const PlotListHeader = ({ lastUpdated, loading, onRefresh }) => {
         <h1>Quản Lý Danh Sách Thửa Đất</h1>
       </div>
       <div className="header-actions">
-        {lastUpdated && (
+        {/* {lastUpdated && (
           <div className="last-updated">
             Cập nhật: {lastUpdated.toLocaleTimeString()}
           </div>
-        )}
+        )} */}
         <button
           className="refresh-button"
           onClick={onRefresh}

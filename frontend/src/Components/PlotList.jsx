@@ -637,7 +637,7 @@ const PlotList = () => {
       />
 
       {/* Debug info */}
-      {process.env.NODE_ENV === "development" && (
+      {/* {process.env.NODE_ENV === "development" && (
         <div
           style={{
             position: "fixed",
@@ -654,7 +654,7 @@ const PlotList = () => {
           Debug: selectedPlot ={" "}
           {selectedPlot ? `Có (ID: ${selectedPlot.id})` : "null"}
         </div>
-      )}
+      )} */}
     </div>
   );
 };

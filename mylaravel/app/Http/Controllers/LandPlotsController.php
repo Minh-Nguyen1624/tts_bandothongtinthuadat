@@ -123,111 +123,12 @@ class LandPlotsController extends Controller
             }
     }
 
-
-
     public function show($id)
     {
         $landPlot = land_plots::findOrFail($id);
         return response()->json(['success' => true, 'data' => $landPlot], 200);
     }
 
-    // public function update(Request $request, $id)
-    // {
-    //     // Chuyển $id thành số nguyên để tránh lỗi
-    //     $id = (int)$id;
-
-    //     $landPlot = land_plots::findOrFail($id);
-
-    //     $validator = Validator::make($request->all(), [
-    //         'ten_chu'      => 'nullable|string|max:100',
-    //         'so_to'        => 'nullable|integer',
-    //         'so_thua'      => 'nullable|integer',
-    //         'ky_hieu_mdsd' => 'nullable|string',
-    //         'phuong_xa'    => 'nullable|string|max:100',
-    //         'status'       => 'in:available,owned,suspended',
-    //         'geom'         => 'nullable|array' // Thêm validation cho geom
-    //     ]);
-
-    //     if ($validator->fails()) {
-    //         return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
-    //     }
-
-    //     try {
-    //         DB::beginTransaction();
-
-    //         $data = $validator->validated();
-
-    //         // ✅ Xử lý geometry nếu có
-    //         if ($request->has('geom') && !empty($request->input('geom'))) {
-    //             $geojson = json_encode($request->input('geom'));
-    //             if ($geojson === false || $geojson === 'null') {
-    //                 throw new \Exception('Invalid GeoJSON data');
-    //             }
-    //             Log::info('GeoJSON for update: ' . $geojson);
-
-    //             DB::update("
-    //                 UPDATE land_plots 
-    //                 SET ten_chu = ?, so_to = ?, so_thua = ?, ky_hieu_mdsd = ?, phuong_xa = ?, 
-    //                     status = ?, plot_list_id = ?, updated_at = ?, 
-    //                     geom = ST_SetSRID(ST_GeomFromGeoJSON(?), 4326)
-    //                 WHERE id = ?
-    //             ", [
-    //                 $data['ten_chu'] ?? $landPlot->ten_chu,
-    //                 $data['so_to'] ?? $landPlot->so_to,
-    //                 $data['so_thua'] ?? $landPlot->so_thua,
-    //                 $data['ky_hieu_mdsd'] ?? $landPlot->ky_hieu_mdsd,
-    //                 $data['phuong_xa'] ?? $landPlot->phuong_xa,
-    //                 $data['status'] ?? $landPlot->status,
-    //                 $data['plot_list_id'] ?? $landPlot->plot_list_id,
-    //                 now(),
-    //                 $geojson,
-    //                 $id
-    //             ]);
-
-    //             $landPlot = land_plots::find($id);
-    //             if (!$landPlot) {
-    //                 throw new \Exception('Failed to retrieve land plot after update');
-    //             }
-    //         } else {
-    //             // Logic cập nhật thông thường
-    //             if (array_key_exists('ten_chu', $data)) {
-    //                 if (!empty(trim($data['ten_chu'] ?? ''))) {
-    //                     $data['status'] = 'owned';
-    //                 } else {
-    //                     $data['status'] = 'available';
-    //                 }
-    //             }
-
-    //             $plotList = \App\Models\PlotList::where('so_to', $data['so_to'] ?? $landPlot->so_to)
-    //                 ->where('so_thua', $data['so_thua'] ?? $landPlot->so_thua)
-    //                 ->first();
-
-    //             if ($plotList) {
-    //                 $data['plot_list_id'] = $plotList->id;
-    //             } else {
-    //                 $data['plot_list_id'] = null;
-    //             }
-
-    //             $landPlot->update($data);
-    //         }
-
-    //         DB::commit();
-
-    //         return response()->json([
-    //             'success' => true,
-    //             'message' => 'Land plot updated successfully',
-    //             'data'    => $landPlot->fresh('plotList')
-    //         ]);
-
-    //     } catch (\Exception $e) {
-    //         DB::rollBack();
-    //         Log::error('Land plot update error: ' . $e->getMessage() . ' with id: ' . $id);
-    //         return response()->json([
-    //             'success' => false,
-    //             'message' => 'Failed to update land plot: ' . $e->getMessage()
-    //         ], 500);
-    //     }
-    // }
     public function update(Request $request, $id)
     {
         $id = (int) $id;

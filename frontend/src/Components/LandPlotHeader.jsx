@@ -27,7 +27,7 @@ const LandPlotHeader = ({ lastUpdated, loading, onRefresh }) => {
         className="last-updated"
         style={{ display: "flex", alignItems: "center" }}
       >
-        <span
+        {/* <span
           style={{
             fontSize: "0.875em",
             fontWeight: "500",
@@ -35,7 +35,7 @@ const LandPlotHeader = ({ lastUpdated, loading, onRefresh }) => {
           }}
         >
           Cập nhật: {formatLastUpdated()}
-        </span>
+        </span> */}
         <button
           onClick={onRefresh}
           disabled={loading}

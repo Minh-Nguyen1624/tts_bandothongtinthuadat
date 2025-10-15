@@ -30,7 +30,7 @@
   background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
   color: white;
   border-radius: 12px 12px 0 0;
-  display: flex;
+  /* display: flex; */
   justify-content: space-between;
   align-items: center;
 }
@@ -446,4 +446,29 @@
   background-position: right 12px center;
   background-size: 8px 10px;
   padding-right: 32px;
+}
+
+.geometry-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+
+.geometry-format-button {
+  background: #4a90e2;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.geometry-format-button:hover:not(:disabled) {
+  background: #357ae8;
+}
+
+.geometry-format-button:disabled {
+  background: #ccc;
+  cursor: not-allowed;
 }

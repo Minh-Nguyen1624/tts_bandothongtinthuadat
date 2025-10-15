@@ -1,8 +1,9 @@
 import React from "react";
 import "../css/HomePage.css";
 
-const HeroSection = () => (
+const HeroSection = ({ time }) => (
   <section className="hero">
+    <span className="time">{time}</span>
     <h1>
       Welcome to <span>My App</span>
     </h1>

@@ -143,27 +143,108 @@ const LandPlotAdd = memo(
     const handleGeometryChange = useCallback(
       (e) => {
         const { value } = e.target;
-        try {
-          const geomData = value ? JSON.parse(value) : null;
-          setFormData((prev) => ({
-            ...prev,
-            geom: geomData,
-          }));
+
+        // Cập nhật giá trị textarea
+        setFormData((prev) => ({
+          ...prev,
+          geom: value,
+        }));
+
+        // Validate JSON format
+        if (value.trim()) {
+          try {
+            const parsed = JSON.parse(value);
+
+            // Validate GeoJSON structure
+            if (!isValidGeoJSON(parsed)) {
+              throw new Error("Cấu trúc GeoJSON không hợp lệ");
+            }
+
+            // Nếu parse thành công và đúng cấu trúc, xóa lỗi
+            if (errors.geom) {
+              setErrors((prev) => ({
+                ...prev,
+                geom: "",
+              }));
+            }
+          } catch (error) {
+            // Hiển thị lỗi chi tiết hơn
+            let errorMessage = "Định dạng JSON không hợp lệ";
+            if (error.message.includes("JSON")) {
+              errorMessage =
+                "Lỗi cú pháp JSON. Kiểm tra dấu ngoặc và dấu phẩy.";
+            } else if (error.message.includes("GeoJSON")) {
+              errorMessage =
+                "Cấu trúc GeoJSON không đúng. Cần có 'type' và 'coordinates'.";
+            }
+
+            setErrors((prev) => ({
+              ...prev,
+              geom: errorMessage,
+            }));
+          }
+        } else {
+          // Nếu empty, xóa lỗi
           if (errors.geom) {
             setErrors((prev) => ({
               ...prev,
               geom: "",
             }));
           }
-        } catch (error) {
-          setErrors((prev) => ({
-            ...prev,
-            geom: "Định dạng JSON không hợp lệ",
-          }));
         }
       },
       [errors.geom]
     );
+
+    // Helper function để validate GeoJSON
+    const isValidGeoJSON = (geojson) => {
+      if (!geojson || typeof geojson !== "object") return false;
+      if (!geojson.type) return false;
+
+      // Basic validation for Polygon
+      if (geojson.type === "Polygon") {
+        if (!Array.isArray(geojson.coordinates)) return false;
+        if (geojson.coordinates.length === 0) return false;
+
+        // Check first ring (exterior ring)
+        const exteriorRing = geojson.coordinates[0];
+        if (!Array.isArray(exteriorRing) || exteriorRing.length < 4)
+          return false;
+
+        // Check if first and last points are the same (closed ring)
+        const firstPoint = exteriorRing[0];
+        const lastPoint = exteriorRing[exteriorRing.length - 1];
+        if (firstPoint[0] !== lastPoint[0] || firstPoint[1] !== lastPoint[1]) {
+          return false;
+        }
+
+        return true;
+      }
+
+      return false;
+    };
+
+    const formatGeometryJSON = useCallback(() => {
+      if (!formData.geom) return;
+
+      try {
+        const parsed = JSON.parse(formData.geom);
+        const formatted = JSON.stringify(parsed, null, 2);
+        setFormData((prev) => ({
+          ...prev,
+          geom: formatted,
+        }));
+
+        if (errors.geom) {
+          setErrors((prev) => ({ ...prev, geom: "" }));
+        }
+      } catch (error) {
+        setErrors((prev) => ({
+          ...prev,
+          geom: "Không thể format: JSON không hợp lệ",
+        }));
+      }
+    }, [formData.geom, errors.geom]);
 
     // Handle blur
     const handleBlur = useCallback((e) => {
@@ -180,32 +261,76 @@ const LandPlotAdd = memo(
     }, []);
 
     // Handle submit
+    // const handleSubmit = useCallback(
+    //   async (e) => {
+    //     e.preventDefault();
+
+    //     // Mark all fields as touched
+    //     const allTouched = Object.keys(formData).reduce((acc, key) => {
+    //       acc[key] = true;
+    //       return acc;
+    //     }, {});
+    //     setTouched(allTouched);
+
+    //     const newErrors = validateForm(formData);
+    //     setErrors(newErrors);
+
+    //     if (Object.keys(newErrors).length > 0) {
+    //       return;
+    //     }
+
+    //     // Prepare data for submission
+    //     const submitData = {
+    //       ...formData,
+    //       so_to: parseInt(formData.so_to),
+    //       so_thua: parseInt(formData.so_thua),
+    //       dien_tich: parseFloat(formData.dien_tich.replace(",", ".")),
+    //       plot_list_id: formData.plot_list_id || null,
+    //       geom: formData.geom || null,
+    //     };
+
+    //     await onSubmit(submitData);
+    //   },
+    //   [formData, onSubmit, validateForm]
+    // );
     const handleSubmit = useCallback(
       async (e) => {
         e.preventDefault();
 
-        // Mark all fields as touched
         const allTouched = Object.keys(formData).reduce((acc, key) => {
           acc[key] = true;
           return acc;
         }, {});
         setTouched(allTouched);
 
-        const newErrors = validateForm(formData);
+        // Parse và validate geometry trước khi submit
+        let parsedGeom = null;
+        if (formData.geom && formData.geom.trim()) {
+          try {
+            parsedGeom = JSON.parse(formData.geom);
+          } catch (error) {
+            setErrors((prev) => ({
+              ...prev,
+              geom: "Định dạng JSON không hợp lệ. Không thể gửi form.",
+            }));
+            return;
+          }
+        }
+
+        const newErrors = validateForm({ ...formData, geom: parsedGeom });
         setErrors(newErrors);
 
         if (Object.keys(newErrors).length > 0) {
           return;
         }
 
-        // Prepare data for submission
         const submitData = {
           ...formData,
           so_to: parseInt(formData.so_to),
           so_thua: parseInt(formData.so_thua),
           dien_tich: parseFloat(formData.dien_tich.replace(",", ".")),
           plot_list_id: formData.plot_list_id || null,
-          geom: formData.geom || null,
+          geom: parsedGeom,
         };
 
         await onSubmit(submitData);
@@ -219,8 +344,13 @@ const LandPlotAdd = memo(
       <div className="blue-modal-overlay">
         <div className="blue-modal-content large-modal">
           {/* Header */}
-          <div className="blue-modal-header">
-            <h2 className="blue-modal-title">Thêm Thửa Đất Mới</h2>
+          <div
+            className="blue-modal-header"
+            style={{ display: "flex", color: "white" }}
+          >
+            <h2 className="blue-modal-title" style={{ color: "white" }}>
+              Thêm Thửa Đất Mới
+            </h2>
             <button
               onClick={onClose}
               className="blue-close-button"
@@ -431,7 +561,7 @@ const LandPlotAdd = memo(
                     </button>
                   </div>
 
-                  {showGeometryInput && (
+                  {/* {showGeometryInput && (
                     <div className="geometry-input-container">
                       <textarea
                         name="geom"
@@ -456,6 +586,41 @@ const LandPlotAdd = memo(
                       )}
                       <div className="input-hint">
                         Nhập dữ liệu hình học dạng GeoJSON (tùy chọn)
+                      </div>
+                    </div>
+                  )} */}
+                  {showGeometryInput && (
+                    <div className="geometry-input-container">
+                      <div className="geometry-toolbar">
+                        <button
+                          type="button"
+                          onClick={formatGeometryJSON}
+                          className="geometry-format-button"
+                          disabled={loading || !formData.geom}
+                        >
+                          Format JSON
+                        </button>
+                      </div>
+                      <textarea
+                        name="geom"
+                        value={formData.geom || ""}
+                        onChange={handleGeometryChange}
+                        onBlur={handleBlur}
+                        placeholder='Nhập dữ liệu GeoJSON (VD: {"type": "Polygon", "coordinates": [[[106.38111,10.35724],[106.38689,10.35724],[106.38689,10.35174],[106.38111,10.35174],[106.38111,10.35724]]]})'
+                        className={`blue-textarea geometry-textarea ${
+                          errors.geom && touched.geom ? "error" : ""
+                        }`}
+                        disabled={loading}
+                        rows={8}
+                      />
+                      {errors.geom && touched.geom && (
+                        <span className="blue-error-message">
+                          {errors.geom}
+                        </span>
+                      )}
+                      <div className="input-hint">
+                        Nhập dữ liệu hình học dạng GeoJSON (tùy chọn). Đảm bảo
+                        định dạng JSON hợp lệ.
                       </div>
                     </div>
                   )}

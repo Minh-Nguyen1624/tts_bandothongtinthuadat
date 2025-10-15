@@ -39,6 +39,8 @@ const LandPlotManagement = () => {
   const [selectedPlot, setSelectedPlot] = useState(null); // Thêm state selected plot
   const [plotListOptions, setPlotListOptions] = useState([]);
   const [exporting, setExporting] = useState(false);
+  const [showMapModal, setShowMapModal] = useState(false);
+  const [selectedPlotForMap, setSelectedPlotForMap] = useState(null);
 
   const token = localStorage.getItem("token");
   const abortControllerRef = useRef(null);
@@ -353,6 +355,16 @@ const LandPlotManagement = () => {
     }
   };
 
+  const handleViewLocation = useCallback((plot) => {
+    setSelectedPlotForMap(plot);
+    setShowMapModal(true);
+  }, []);
+
+  const handleCloseMapModal = useCallback(() => {
+    setShowMapModal(false);
+    setSelectedPlotForMap(null);
+  }, []);
+
   // Xử lý search với debounce
   useEffect(() => {
     if (debouncedSearch.trim()) {
@@ -631,6 +643,8 @@ const LandPlotManagement = () => {
         search={search}
         onEditPlot={handleOpenEditModal}
         onDeletePlot={handleDeletePlot}
+        onViewLocation={handleViewLocation}
+        fetchLandPlots={fetchLandPlots}
       />
 
       {/* Pagination */}
@@ -652,6 +666,7 @@ const LandPlotManagement = () => {
         loading={adding}
         phuongXaOptions={phuongXaOptions}
         plotListOptions={plotListOptions} // Thêm dòng này
+        fetchLandPlots={fetchLandPlots}
       />
 
       {/* Edit Modal */}
@@ -664,6 +679,7 @@ const LandPlotManagement = () => {
         plotListOptions={plotListOptions} // Thêm dòng này
         plotData={selectedPlot}
         token={token}
+        fetchLandPlots={fetchLandPlots}
       />
     </div>
   );

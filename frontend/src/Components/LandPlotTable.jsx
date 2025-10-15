@@ -9,6 +9,7 @@ const LandPlotTable = ({
   search,
   onEditPlot,
   onDeletePlot,
+  onViewLocation,
 }) => {
   const tableHeaders = [
     "STT",
@@ -22,6 +23,7 @@ const LandPlotTable = ({
 
   const getAlignment = (header) => {
     return header === "STT" ||
+      header === "Tên chủ" ||
       header === "Số tờ" ||
       header === "Số thửa" ||
       header === "Thao tác" ||
@@ -65,10 +67,19 @@ const LandPlotTable = ({
                   style={{
                     padding: "12px 8px",
                     textAlign: getAlignment(header),
-                    fontWeight: "bold",
+                    // fontWeight: "bold",
+                    background:
+                      "linear-gradient(135deg, var(--primary-blue), var(--primary-light)",
                     color: "#000",
                     border: "1px solid #dee2e6",
                     whiteSpace: "nowrap",
+                    fontWeight: 600,
+                    fontSize: "0.85rem",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.5px",
+                    position: "sticky",
+                    top: 0,
+                    zIndex: 10,
                   }}
                 >
                   {header}
@@ -78,7 +89,7 @@ const LandPlotTable = ({
           </thead>
           <tbody>
             {data.length === 0 ? (
-              <tr>
+              <tr style={{ transition: "all var(--transition-fast)" }}>
                 <td
                   colSpan="7"
                   style={{
@@ -104,6 +115,7 @@ const LandPlotTable = ({
                   startIndex={startIndex}
                   onEditPlot={onEditPlot}
                   onDeletePlot={onDeletePlot}
+                  onViewLocation={onViewLocation}
                 />
               ))
             )}
@@ -127,6 +139,12 @@ const TableRow = ({
   const handleEdit = () => {
     if (onEditPlot) {
       onEditPlot(landPlot);
+    }
+  };
+
+  const handleViewLocation = () => {
+    if (onViewLocation) {
+      onViewLocation(landPlot);
     }
   };
 
@@ -164,7 +182,12 @@ const TableRow = ({
         </TableCell>
         <TableCell>{landPlot.phuong_xa || landPlot.dia_chi || ""}</TableCell>
         <TableCell align="center">
-          <ActionButtons onEdit={handleEdit} onDelete={openDeleteConfirm} />
+          <ActionButtons
+            onEdit={handleEdit}
+            onDelete={openDeleteConfirm}
+            onViewLocation={handleViewLocation}
+            hasLocation={!!landPlot.geom}
+          />
         </TableCell>
       </tr>
 
@@ -248,16 +271,17 @@ const TableCell = ({ children, align = "left", ...props }) => (
 );
 
 // Sub-component for action buttons
-const ActionButtons = ({ onEdit, onDelete }) => {
+const ActionButtons = ({ onEdit, onDelete, onViewLocation, hasLocation }) => {
   const [hoveredButton, setHoveredButton] = useState(null);
 
   const buttons = [
     {
       icon: FaSearchLocation,
-      color: "#17a2b8",
-      hoverColor: "#e2f3f7",
-      title: "Xem vị trí",
-      onClick: () => console.log("Xem vị trí"),
+      color: hasLocation ? "#17a2b8" : "#ccc",
+      hoverColor: hasLocation ? "#e2f3f7" : "#f5f5f5",
+      // title: "Xem vị trí",
+      title: hasLocation ? "Xem vị trí" : "Chưa có vị trí",
+      onClick: () => (hasLocation ? onViewLocation : () => {}),
     },
     {
       icon: FaRegEdit,

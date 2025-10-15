@@ -236,14 +236,17 @@ const PlotModal = memo(
           <div className="blue-modal-header">
             <div className="blue-header-content">
               <div className="blue-title-section">
-                <div className="blue-icon-badge">
+                {/* <div className="blue-icon-badge">
                   <FaEdit />
-                </div>
+                </div> */}
                 <div>
-                  <h2 className="blue-modal-title">
+                  <h2
+                    className="blue-modal-title"
+                    style={{ color: "white", paddingBottom: "5px" }}
+                  >
                     {plotData ? "Chỉnh Sửa Thửa Đất" : "Thêm Thửa Đất Mới"}
                   </h2>
-                  <p className="blue-modal-subtitle">
+                  <p className="blue-modal-subtitle" style={{ color: "white" }}>
                     {plotData
                       ? `Cập nhật thông tin thửa đất số ${
                           plotData.so_thua || ""
@@ -256,7 +259,10 @@ const PlotModal = memo(
               <div className="blue-header-actions">
                 {/* Progress Indicator */}
                 <div className="blue-progress-indicator">
-                  <div className="blue-progress-text">
+                  <div
+                    className="blue-progress-text"
+                    style={{ color: "white" }}
+                  >
                     {formStatus.filledFields}/{formStatus.totalFields} trường
                     bắt buộc
                   </div>
@@ -389,7 +395,7 @@ const PlotModal = memo(
               <div className="blue-form-group">
                 <label className="blue-field-label">
                   <FaGlobe className="blue-label-icon" />
-                  Xã
+                  Phường/Xã
                   <span className="blue-optional-badge">Tùy chọn</span>
                 </label>
                 {/* <select
