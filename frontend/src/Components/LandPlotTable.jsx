@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { FaRegEdit, FaSearchLocation, FaTrashAlt } from "react-icons/fa";
+import LandPlotMapModal from "../Components/LandPlotMapModal.jsx";
 
 const LandPlotTable = ({
   data,
@@ -11,6 +12,19 @@ const LandPlotTable = ({
   onDeletePlot,
   onViewLocation,
 }) => {
+  const [selectedPlot, setSelectedPlot] = useState(null);
+  const [showMapModal, setShowMapModal] = useState(false);
+
+  const handleViewLocation = (landPlot) => {
+    setSelectedPlot(landPlot);
+    setShowMapModal(true);
+  };
+
+  const handleCloseMapModal = () => {
+    setShowMapModal(false);
+    setSelectedPlot(null);
+  };
+
   const tableHeaders = [
     "STT",
     "Tên chủ",
@@ -34,95 +48,102 @@ const LandPlotTable = ({
   };
 
   return (
-    <div
-      style={{
-        backgroundColor: "white",
-        borderRadius: "4px",
-        overflow: "hidden",
-        border: "1px solid #dee2e6",
-        marginBottom: "15px",
-        minHeight: "400px",
-      }}
-    >
-      <div style={{ overflowX: "auto" }}>
-        <table
-          style={{
-            borderCollapse: "collapse",
-            width: "100%",
-            fontSize: "14px",
-            minWidth: "800px",
-          }}
-        >
-          <thead
+    <>
+      <div
+        style={{
+          backgroundColor: "white",
+          borderRadius: "4px",
+          overflow: "hidden",
+          border: "1px solid #dee2e6",
+          marginBottom: "15px",
+          minHeight: "400px",
+        }}
+      >
+        <div style={{ overflowX: "auto" }}>
+          <table
             style={{
-              backgroundColor: "#f8f9fa",
-              position: "sticky",
-              top: 0,
+              borderCollapse: "collapse",
+              width: "100%",
+              fontSize: "14px",
+              minWidth: "800px",
             }}
           >
-            <tr>
-              {tableHeaders.map((header) => (
-                <th
-                  key={header}
-                  style={{
-                    padding: "12px 8px",
-                    textAlign: getAlignment(header),
-                    // fontWeight: "bold",
-                    background:
-                      "linear-gradient(135deg, var(--primary-blue), var(--primary-light)",
-                    color: "#000",
-                    border: "1px solid #dee2e6",
-                    whiteSpace: "nowrap",
-                    fontWeight: 600,
-                    fontSize: "0.85rem",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.5px",
-                    position: "sticky",
-                    top: 0,
-                    zIndex: 10,
-                  }}
-                >
-                  {header}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {data.length === 0 ? (
-              <tr style={{ transition: "all var(--transition-fast)" }}>
-                <td
-                  colSpan="7"
-                  style={{
-                    padding: "40px",
-                    textAlign: "center",
-                    color: "#666",
-                    fontStyle: "italic",
-                  }}
-                >
-                  {loading || searching
-                    ? "Đang tải dữ liệu..."
-                    : search
-                    ? "Không tìm thấy kết quả phù hợp"
-                    : "Không có dữ liệu thửa đất"}
-                </td>
+            <thead
+              style={{
+                backgroundColor: "#f8f9fa",
+                position: "sticky",
+                top: 0,
+              }}
+            >
+              <tr>
+                {tableHeaders.map((header) => (
+                  <th
+                    key={header}
+                    style={{
+                      padding: "12px 8px",
+                      textAlign: getAlignment(header),
+                      // fontWeight: "bold",
+                      background:
+                        "linear-gradient(135deg, var(--primary-blue), var(--primary-light)",
+                      color: "#000",
+                      border: "1px solid #dee2e6",
+                      whiteSpace: "nowrap",
+                      fontWeight: 600,
+                      fontSize: "0.85rem",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.5px",
+                      position: "sticky",
+                      top: 0,
+                      zIndex: 10,
+                    }}
+                  >
+                    {header}
+                  </th>
+                ))}
               </tr>
-            ) : (
-              data.map((landPlot, index) => (
-                <TableRow
-                  key={landPlot.id}
-                  landPlot={landPlot}
-                  index={index}
-                  startIndex={startIndex}
-                  onEditPlot={onEditPlot}
-                  onDeletePlot={onDeletePlot}
-                  onViewLocation={onViewLocation}
-                />
-              ))
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {data.length === 0 ? (
+                <tr style={{ transition: "all var(--transition-fast)" }}>
+                  <td
+                    colSpan="7"
+                    style={{
+                      padding: "40px",
+                      textAlign: "center",
+                      color: "#666",
+                      fontStyle: "italic",
+                    }}
+                  >
+                    {loading || searching
+                      ? "Đang tải dữ liệu..."
+                      : search
+                      ? "Không tìm thấy kết quả phù hợp"
+                      : "Không có dữ liệu thửa đất"}
+                  </td>
+                </tr>
+              ) : (
+                data.map((landPlot, index) => (
+                  <TableRow
+                    key={landPlot.id}
+                    landPlot={landPlot}
+                    index={index}
+                    startIndex={startIndex}
+                    onEditPlot={onEditPlot}
+                    onDeletePlot={onDeletePlot}
+                    // onViewLocation={onViewLocation}
+                    onViewLocation={handleViewLocation}
+                  />
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
-    </div>
+
+      {showMapModal && (
+        <LandPlotMapModal plot={selectedPlot} onClose={handleCloseMapModal} />
+      )}
+    </>
   );
 };
 
@@ -132,6 +153,7 @@ const TableRow = ({
   startIndex,
   onEditPlot,
   onDeletePlot,
+  onViewLocation,
 }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -187,6 +209,7 @@ const TableRow = ({
             onDelete={openDeleteConfirm}
             onViewLocation={handleViewLocation}
             hasLocation={!!landPlot.geom}
+            hasCoordinates={!!landPlot.lat && !!landPlot.lng}
           />
         </TableCell>
       </tr>
@@ -271,7 +294,13 @@ const TableCell = ({ children, align = "left", ...props }) => (
 );
 
 // Sub-component for action buttons
-const ActionButtons = ({ onEdit, onDelete, onViewLocation, hasLocation }) => {
+const ActionButtons = ({
+  onEdit,
+  onDelete,
+  onViewLocation,
+  hasLocation,
+  hasCoordinates,
+}) => {
   const [hoveredButton, setHoveredButton] = useState(null);
 
   const buttons = [
@@ -281,7 +310,8 @@ const ActionButtons = ({ onEdit, onDelete, onViewLocation, hasLocation }) => {
       hoverColor: hasLocation ? "#e2f3f7" : "#f5f5f5",
       // title: "Xem vị trí",
       title: hasLocation ? "Xem vị trí" : "Chưa có vị trí",
-      onClick: () => (hasLocation ? onViewLocation : () => {}),
+      // onClick: () => (hasLocation ? onViewLocation : () => {}),
+      onClick: () => (hasLocation ? onViewLocation() : null),
     },
     {
       icon: FaRegEdit,

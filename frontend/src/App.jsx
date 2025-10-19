@@ -11,6 +11,7 @@ import HomePage from "./Components/HomePage.jsx";
 import Header from "./Components/Header.jsx";
 import LandPlotManagement from "./Components/LandPlotManagement.jsx";
 import PlotList from "./Components/PlotList.jsx";
+import LandUsePlanningMap from "./Components/LandUsePlanningMap.jsx";
 
 // Route bảo vệ
 const ProtectedRoute = ({ children }) => {
@@ -84,6 +85,14 @@ function App() {
           element={<HomePage isAuthenticated={isAuthenticated} user={user} />}
         />
         <Route path="/login" element={<Login onLogin={handleLogin} />} />
+        <Route
+          path="/land-use-planning-map"
+          element={
+            <ProtectedRoute>
+              <LandUsePlanningMap />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/dashboard"
           element={

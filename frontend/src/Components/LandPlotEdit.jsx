@@ -34,7 +34,7 @@ const LandPlotEdit = React.memo(
     plotListOptions = [],
     plotData,
     token,
-    fetchLandPlots,
+    fetchLandPlot,
   }) => {
     const [formData, setFormData] = useState({
       id: "",
@@ -227,14 +227,14 @@ const LandPlotEdit = React.memo(
           newErrors.ky_hieu_mdsd = "Vui lòng nhập ký hiệu mục đích sử dụng";
         }
 
-        if (!data.dien_tich || data.dien_tich.toString().trim() === "") {
-          newErrors.dien_tich = "Diện tích không được để trống";
-        } else {
-          const dienTich = parseFloat(data.dien_tich.replace(",", "."));
-          if (isNaN(dienTich) || dienTich <= 0) {
-            newErrors.dien_tich = "Diện tích phải là số dương";
-          }
-        }
+        // if (!data.dien_tich || data.dien_tich.toString().trim() === "") {
+        //   newErrors.dien_tich = "Diện tích không được để trống";
+        // } else {
+        //   const dienTich = parseFloat(data.dien_tich.replace(",", "."));
+        //   if (isNaN(dienTich) || dienTich <= 0) {
+        //     newErrors.dien_tich = "Diện tích phải là số dương";
+        //   }
+        // }
 
         if (!data.phuong_xa?.trim()) {
           newErrors.phuong_xa = "Vui lòng chọn phường/xã";
@@ -393,151 +393,6 @@ const LandPlotEdit = React.memo(
       setIsMapExpanded((prev) => !prev);
     }, []);
 
-    // const fetchLandPlotEdit = useCallback(
-    //   async (formData) => {
-    //     if (!token) {
-    //       setError("Vui lòng đăng nhập trước");
-    //       return false;
-    //     }
-
-    //     try {
-    //       setLoading(true);
-    //       setError(null);
-    //       setErrors({});
-
-    //       const payload = { ...formData };
-
-    //       // console.log("🔄 Bắt đầu xử lý dữ liệu...");
-    //       // console.log("📥 Dữ liệu form nhận được:", formData);
-
-    //       // Xử lý các trường số
-    //       payload.so_to = parseInt(payload.so_to, 10);
-    //       if (isNaN(payload.so_to) || payload.so_to <= 0) {
-    //         throw new Error("Số tờ không hợp lệ");
-    //       }
-
-    //       payload.so_thua = parseInt(payload.so_thua, 10);
-    //       if (isNaN(payload.so_thua) || payload.so_thua <= 0) {
-    //         throw new Error("Số thửa không hợp lệ");
-    //       }
-
-    //       // Xử lý diện tích
-    //       if (
-    //         typeof payload.dien_tich === "string" &&
-    //         payload.dien_tich.trim()
-    //       ) {
-    //         const cleanDienTich = payload.dien_tich.replace(",", ".");
-    //         payload.dien_tich = parseFloat(cleanDienTich);
-    //         if (isNaN(payload.dien_tich) || payload.dien_tich <= 0) {
-    //           throw new Error("Diện tích không hợp lệ");
-    //         }
-    //       } else {
-    //         throw new Error("Diện tích không được để trống");
-    //       }
-
-    //       // Xử lý các trường text
-    //       payload.ky_hieu_mdsd = payload.ky_hieu_mdsd.trim();
-    //       if (!payload.ky_hieu_mdsd) {
-    //         throw new Error("Ký hiệu mục đích sử dụng không được để trống");
-    //       }
-
-    //       payload.phuong_xa = payload.phuong_xa.trim();
-    //       if (!payload.phuong_xa) {
-    //         throw new Error("Phường/Xã không được để trống");
-    //       }
-
-    //       // XỬ LÝ GEOMETRY: GIỮ NGUYÊN WKB HEX, KHÔNG CHUYỂN ĐỔI
-    //       console.log(
-    //         "🗺️ Geometry trước xử lý:",
-    //         payload.geom ? "Có dữ liệu" : "Không có"
-    //       );
-    //       if (payload.geom && payload.geom.trim()) {
-    //         // NẾU LÀ WKB HEX, GIỮ NGUYÊN VÀ GỬI LÊN SERVER
-    //         if (payload.geom.startsWith("010") && payload.geom.length > 50) {
-    //           console.log("✅ Giữ nguyên WKB hex geometry");
-    //           // KHÔNG LÀM GÌ CẢ, GIỮ NGUYÊN payload.geom
-    //         } else if (payload.geom.trim().startsWith("{")) {
-    //           // NẾU LÀ GEOJSON, PARSE THÀNH OBJECT
-    //           try {
-    //             const parsed = JSON.parse(payload.geom);
-    //             if (isValidGeoJSON(parsed)) {
-    //               payload.geom = parsed;
-    //               console.log("✅ Đã parse GeoJSON thành object");
-    //             } else {
-    //               console.warn("⚠️ GeoJSON không hợp lệ, xóa geometry");
-    //               delete payload.geom;
-    //             }
-    //           } catch (error) {
-    //             console.warn("⚠️ Lỗi parse GeoJSON, xóa geometry");
-    //             delete payload.geom;
-    //           }
-    //         } else {
-    //           console.warn("⚠️ Định dạng geometry không hợp lệ, xóa geometry");
-    //           delete payload.geom;
-    //         }
-    //       } else {
-    //         // Không có geometry, xóa khỏi payload
-    //         delete payload.geom;
-    //       }
-
-    //       // Xử lý các trường optional
-    //       payload.ten_chu = payload.ten_chu?.trim() || null;
-    //       payload.ghi_chu = payload.ghi_chu?.trim() || null;
-    //       payload.plot_list_id = payload.plot_list_id || null;
-
-    //       console.log(
-    //         "🚀 Payload cuối cùng:",
-    //         JSON.stringify(payload, null, 2)
-    //       );
-
-    //       const response = await axios.put(
-    //         `${API_URL}/api/land_plots/${formData.id}`,
-    //         payload,
-    //         {
-    //           headers: {
-    //             Authorization: `Bearer ${token}`,
-    //             "Content-Type": "application/json",
-    //           },
-    //         }
-    //       );
-
-    //       if (response.data.success) {
-    //         setSuccess("Cập nhật thửa đất thành công!");
-    //         onPlotUpdated?.(response.data.data);
-    //         setTimeout(() => handleClose(), 1000);
-    //         return true;
-    //       } else {
-    //         setError(response.data.message || "Có lỗi xảy ra khi cập nhật");
-    //         return false;
-    //       }
-    //     } catch (error) {
-    //       console.error("Error updating land plot:", error);
-    //       if (error.response) {
-    //         const errorMessage =
-    //           error.response.data?.message ||
-    //           error.response.data?.error ||
-    //           "Có lỗi xảy ra khi cập nhật";
-    //         setError(errorMessage);
-    //         if (error.response.status === 422 && error.response.data.errors) {
-    //           console.error(
-    //             "📋 Lỗi validation từ server:",
-    //             error.response.data.errors
-    //           );
-    //           setErrors(error.response.data.errors);
-    //         }
-    //       } else if (error.request) {
-    //         setError("Không thể kết nối đến server. Vui lòng thử lại.");
-    //       } else {
-    //         setError(error.message || "Có lỗi xảy ra");
-    //       }
-    //       return false;
-    //     } finally {
-    //       setLoading(false);
-    //     }
-    //   },
-    //   [token, onPlotUpdated, processGeometryForServer]
-    // );
-
     // ĐỊNH NGHĨA requiredFields Ở ĐÂY ĐỂ SỬ DỤNG TRONG handleSubmit
     const fetchLandPlotEdit = useCallback(
       async (formData) => {
@@ -553,17 +408,26 @@ const LandPlotEdit = React.memo(
 
           // Tạo payload theo đúng backend expectation
           const payload = {
-            // id: formData.id, // KHÔNG gửi id trong payload body
+            // ten_chu: formData.ten_chu?.trim() || null,
+            // ten_chu: formData.ten_chu || null,
+            // so_to: formData.so_to ? parseInt(formData.so_to, 10) : null,
+            // so_thua: formData.so_thua ? parseInt(formData.so_thua, 10) : null,
+            // ky_hieu_mdsd: formData.ky_hieu_mdsd?.trim() || null,
+            // phuong_xa: formData.phuong_xa?.trim() || null,
+            // plot_list_id: formData.plot_list_id || null,
             ten_chu: formData.ten_chu?.trim() || null,
             so_to: formData.so_to ? parseInt(formData.so_to, 10) : null,
             so_thua: formData.so_thua ? parseInt(formData.so_thua, 10) : null,
             ky_hieu_mdsd: formData.ky_hieu_mdsd?.trim() || null,
+            dien_tich: formData.dien_tich
+              ? parseFloat(formData.dien_tich.replace(",", "."))
+              : null,
             phuong_xa: formData.phuong_xa?.trim() || null,
+            ghi_chu: formData.ghi_chu?.trim() || null,
             plot_list_id: formData.plot_list_id || null,
           };
 
-          console.log("🔄 Payload gửi lên server:", payload);
-          console.log("📝 ID thửa đất:", formData.id);
+          console.log("📤 Payload trước khi xử lý geometry:", payload);
 
           // XỬ LÝ GEOMETRY
           if (formData.geom && formData.geom.trim()) {
@@ -575,19 +439,13 @@ const LandPlotEdit = React.memo(
                 const parsed = JSON.parse(formData.geom);
                 if (isValidGeoJSON(parsed)) {
                   payload.geom = parsed;
-                  console.log("✅ Đã parse GeoJSON thành object");
+                  // console.log("✅ Đã parse GeoJSON thành object");
                 }
               } catch (error) {
                 console.warn("⚠️ Lỗi parse GeoJSON, không gửi geometry");
               }
             }
           }
-
-          console.log(
-            "🚀 Gửi request đến:",
-            `${API_URL}/api/land_plots/${formData.id}`
-          );
-          console.log("📦 Payload cuối cùng:", payload);
 
           const response = await axios.put(
             `${API_URL}/api/land_plots/${formData.id}`,
@@ -604,10 +462,10 @@ const LandPlotEdit = React.memo(
 
           if (response.data.success) {
             setSuccess("Cập nhật thửa đất thành công!");
-            console.log(
-              "🎉 Cập nhật thành công, dữ liệu trả về:",
-              response.data.data
-            );
+            // console.log(
+            //   "🎉 Cập nhật thành công, dữ liệu trả về:",
+            //   response.data.data
+            // );
             onPlotUpdated?.(response.data.data);
             setTimeout(() => handleClose(), 1000);
             return true;
@@ -618,9 +476,9 @@ const LandPlotEdit = React.memo(
         } catch (error) {
           console.error("❌ Error updating land plot:", error);
           if (error.response) {
-            console.error("📋 Server response:", error.response);
-            console.error("📋 Server data:", error.response.data);
-            console.error("📋 Server status:", error.response.status);
+            // console.error("📋 Server response:", error.response);
+            // console.error("📋 Server data:", error.response.data);
+            // console.error("📋 Server status:", error.response.status);
 
             const errorMessage =
               error.response.data?.message ||
@@ -650,21 +508,15 @@ const LandPlotEdit = React.memo(
       [token, onPlotUpdated]
     );
     const requiredFields = [
+      // "ten_chu",
       "so_to",
       "so_thua",
       "ky_hieu_mdsd",
-      "dien_tich",
+      // "dien_tich",
       "phuong_xa",
     ];
 
     const formStatus = useMemo(() => {
-      const requiredFields = [
-        "so_to",
-        "so_thua",
-        "ky_hieu_mdsd",
-        "dien_tich",
-        "phuong_xa",
-      ];
       const filledRequiredFields = requiredFields.filter(
         (field) => formData[field] && formData[field].toString().trim()
       );
@@ -673,7 +525,13 @@ const LandPlotEdit = React.memo(
         (filledRequiredFields.length / requiredFields.length) * 100;
       const isComplete = progress === 100 && Object.keys(errors).length === 0;
 
-      // Kiểm tra từng field
+      console.log("🔍 Form Status Debug:");
+      console.log(" - Required Fields:", requiredFields);
+      console.log(" - Filled Fields:", filledRequiredFields);
+      console.log(" - Progress:", progress);
+      console.log(" - Errors:", errors);
+      console.log(" - isComplete:", isComplete);
+
       requiredFields.forEach((field) => {
         const value = formData[field];
         const hasValue = value && value.toString().trim();
@@ -690,7 +548,6 @@ const LandPlotEdit = React.memo(
         totalFields: requiredFields.length,
       };
     }, [formData, errors]);
-
     const handleSubmit = useCallback(
       async (e) => {
         e.preventDefault();
@@ -733,17 +590,42 @@ const LandPlotEdit = React.memo(
           return;
         }
 
+        // const submitData = {
+        //   ...formData,
+        //   ten_chu: formData.ten_chu.trim() || null,
+        //   // dien_tich: formData.dien_tich.trim(),
+        //   so_to: parseInt(formData.so_to),
+        //   so_thua: parseInt(formData.so_thua),
+        //   ghi_chu: formData.ghi_chu.trim() || null,
+        //   ky_hieu_mdsd: formData.ky_hieu_mdsd.trim() || null,
+        // };
         const submitData = {
-          ...formData,
-          ten_chu: formData.ten_chu.trim() || null,
-          dien_tich: formData.dien_tich.trim(),
-          so_to: parseInt(formData.so_to),
-          so_thua: parseInt(formData.so_thua),
-          ghi_chu: formData.ghi_chu.trim() || null,
+          // id: formData.id,
+          // ten_chu: formData.ten_chu || null,
+          // // so_to: parseInt(formData.so_to),
+          // // so_thua: parseInt(formData.so_thua),
+          // so_to: formData.so_to ? parseInt(formData.so_to) : null,
+          // so_thua: formData.so_thua ? parseInt(formData.so_thua) : null,
+          // ky_hieu_mdsd: formData.ky_hieu_mdsd.trim() || null,
+          // phuong_xa: formData.phuong_xa.trim() || null,
+          // plot_list_id: formData.plot_list_id || null,
+          // geom: formData.geom || null,
+          id: formData.id,
+          ten_chu: formData.ten_chu || null,
+          so_to: formData.so_to ? parseInt(formData.so_to) : null,
+          so_thua: formData.so_thua ? parseInt(formData.so_thua) : null,
+          ky_hieu_mdsd: formData.ky_hieu_mdsd?.trim() || null,
+          dien_tich: formData.dien_tich || null,
+          phuong_xa: formData.phuong_xa?.trim() || null,
+          ghi_chu: formData.ghi_chu?.trim() || null,
+          plot_list_id: formData.plot_list_id || null,
+          geom: formData.geom || null,
         };
 
         // console.log("🚀 Gửi dữ liệu:", submitData);
         await fetchLandPlotEdit(submitData);
+
+        await fetchLandPlot();
       },
       [formData, validateForm, fetchLandPlotEdit, formStatus]
     );
@@ -774,6 +656,7 @@ const LandPlotEdit = React.memo(
     if (!show) return null;
 
     const isLoading = loading || externalLoading;
+    console.log("🔍 isLoading Debug:", { loading, externalLoading, isLoading });
 
     return (
       <div className="blue-modal-overlay">
@@ -855,14 +738,14 @@ const LandPlotEdit = React.memo(
                           <label className="blue-field-label">
                             <FaUser className="label-icon" />
                             Tên chủ sở hữu
-                            <span className="optional-badge">Tùy chọn</span>
+                            {/* <span className="optional-badge">Tùy chọn</span> */}
                           </label>
                           <input
                             type="text"
                             name="ten_chu"
                             value={formData.ten_chu}
                             onChange={handleInputChange}
-                            onBlur={handleBlur}
+                            // onBlur={handleBlur}
                             placeholder="Nhập tên chủ sở hữu"
                             className={`blue-input ${
                               errors.ten_chu && touched.ten_chu ? "error" : ""
@@ -883,6 +766,10 @@ const LandPlotEdit = React.memo(
                           </label>
                           <div className="compact-row">
                             <div className="compact-field">
+                              <label className="blue-field-label">
+                                Số tờ
+                                <span className="required-asterisk">*</span>
+                              </label>
                               <input
                                 type="number"
                                 name="so_to"
@@ -903,6 +790,10 @@ const LandPlotEdit = React.memo(
                               )}
                             </div>
                             <div className="compact-field">
+                              <label className="blue-field-label">
+                                Số thửa
+                                <span className="required-asterisk">*</span>
+                              </label>
                               <input
                                 type="number"
                                 name="so_thua"
@@ -976,7 +867,8 @@ const LandPlotEdit = React.memo(
                                 ? "error"
                                 : ""
                             }`}
-                            disabled={isLoading}
+                            // disabled={isLoading}
+                            disabled
                           />
                           {errors.dien_tich && touched.dien_tich && (
                             <span className="blue-error-message">
@@ -1076,7 +968,7 @@ const LandPlotEdit = React.memo(
                                   name="geom"
                                   value={formData.geom || ""}
                                   onChange={handleGeometryChange}
-                                  onBlur={handleBlur}
+                                  // onBlur={handleBlur}
                                   placeholder='Nhập dữ liệu GeoJSON (VD: {"type": "Polygon", "coordinates": [[[106.38111,10.35724],[106.38689,10.35724],[106.38689,10.35174],[106.38111,10.35174],[106.38111,10.35724]]]})'
                                   className={`blue-textarea geometry-textarea ${
                                     errors.geom && touched.geom ? "error" : ""

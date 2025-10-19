@@ -20,6 +20,7 @@ const LandPlotAdd = memo(
     loading,
     phuongXaOptions,
     plotListOptions = [],
+    fetchLandPlots,
   }) => {
     const [formData, setFormData] = useState({
       ten_chu: "",
@@ -334,6 +335,8 @@ const LandPlotAdd = memo(
         };
 
         await onSubmit(submitData);
+
+        await fetchLandPlots();
       },
       [formData, onSubmit, validateForm]
     );

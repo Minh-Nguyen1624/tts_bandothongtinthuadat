@@ -6,7 +6,7 @@ const PlotListHeader = ({ lastUpdated, loading, onRefresh }) => {
     <div className="plotlist-header">
       <div className="header-title">
         <FaList className="title-icon" />
-        <h1>Quản Lý Danh Sách Thửa Đất</h1>
+        <h1>Quản Lý Danh Sách Lô Đất</h1>
       </div>
       <div className="header-actions">
         {/* {lastUpdated && (

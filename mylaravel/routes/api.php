@@ -149,6 +149,7 @@ Route::middleware([AdminMiddleware::class])->group(function() {
         Route::put("/{id}", [LandPlotsController::class, 'update']);
         Route::delete("/{id}", [LandPlotsController::class, 'destroy']);
         Route::get('/test-geometry-steps', [LandPlotsController::class, 'testGeometryStepByStep']);
+        Route::post('/{id}/update-geometry', [LandPlotsController::class, 'updateGeometry']);
     });
 });
 

@@ -231,66 +231,66 @@ const LandPlotManagement = () => {
   );
 
   // Hàm chỉnh sửa thửa đất - ĐÃ SỬA LỖI
-  const fetchLandPlotEdit = useCallback(
-    async (formData) => {
-      if (!token) {
-        setError("Vui lòng đăng nhập trước");
-        return false;
-      }
+  // const fetchLandPlotEdit = useCallback(
+  //   async (formData) => {
+  //     if (!token) {
+  //       setError("Vui lòng đăng nhập trước");
+  //       return false;
+  //     }
 
-      setEditing(true);
-      setError(null);
-      setSuccess(null);
+  //     setEditing(true);
+  //     setError(null);
+  //     setSuccess(null);
 
-      try {
-        const response = await axios.put(
-          `${API_URL}/api/land_plots/${formData.id}`,
-          formData,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
-          }
-        );
+  //     try {
+  //       const response = await axios.put(
+  //         `${API_URL}/api/land_plots/${formData.id}`,
+  //         formData,
+  //         {
+  //           headers: {
+  //             Authorization: `Bearer ${token}`,
+  //             "Content-Type": "application/json",
+  //           },
+  //         }
+  //       );
 
-        if (response.data.success) {
-          // Cập nhật lại danh sách
-          setLandPlots((prev) =>
-            prev.map((plot) =>
-              plot.id === formData.id ? response.data.data : plot
-            )
-          );
+  //       if (response.data.success) {
+  //         // Cập nhật lại danh sách
+  //         setLandPlots((prev) =>
+  //           prev.map((plot) =>
+  //             plot.id === formData.id ? response.data.data : plot
+  //           )
+  //         );
 
-          setShowEditModal(false);
-          setSuccess("Cập nhật thửa đất thành công!");
-          return true;
-        } else {
-          setError(response.data.message || "Có lỗi xảy ra khi cập nhật");
-          return false;
-        }
-      } catch (error) {
-        console.error("Error updating land plot:", error);
+  //         setShowEditModal(false);
+  //         setSuccess("Cập nhật thửa đất thành công!");
+  //         return true;
+  //       } else {
+  //         setError(response.data.message || "Có lỗi xảy ra khi cập nhật");
+  //         return false;
+  //       }
+  //     } catch (error) {
+  //       console.error("Error updating land plot:", error);
 
-        if (error.response) {
-          const errorMessage =
-            error.response.data?.message ||
-            error.response.data?.error ||
-            "Có lỗi xảy ra khi cập nhật";
-          setError(errorMessage);
-        } else if (error.request) {
-          setError("Không thể kết nối đến server. Vui lòng thử lại.");
-        } else {
-          setError("Có lỗi xảy ra: " + error.message);
-        }
+  //       if (error.response) {
+  //         const errorMessage =
+  //           error.response.data?.message ||
+  //           error.response.data?.error ||
+  //           "Có lỗi xảy ra khi cập nhật";
+  //         setError(errorMessage);
+  //       } else if (error.request) {
+  //         setError("Không thể kết nối đến server. Vui lòng thử lại.");
+  //       } else {
+  //         setError("Có lỗi xảy ra: " + error.message);
+  //       }
 
-        return false;
-      } finally {
-        setEditing(false);
-      }
-    },
-    [token]
-  );
+  //       return false;
+  //     } finally {
+  //       setEditing(false);
+  //     }
+  //   },
+  //   [token]
+  // );
 
   // Memoize search function
   const searchLandPlots = useCallback(
@@ -514,10 +514,10 @@ const LandPlotManagement = () => {
   };
 
   // Xử lý submit form chỉnh sửa
-  const handleEditSubmit = async (formData) => {
-    const success = await fetchLandPlotEdit(formData);
-    return success;
-  };
+  // const handleEditSubmit = async (formData) => {
+  //   const success = await fetchLandPlotEdit(formData);
+  //   return success;
+  // };
 
   const handlePlotUpdated = useCallback((updatedPlot) => {
     // Cập nhật danh sách với dữ liệu mới
@@ -673,13 +673,13 @@ const LandPlotManagement = () => {
       <LandPlotEdit
         show={showEditModal}
         onClose={handleCloseEditModal}
-        onSubmit={handleEditSubmit}
+        // onSubmit={handleEditSubmit}
         loading={editing}
         phuongXaOptions={phuongXaOptions}
         plotListOptions={plotListOptions} // Thêm dòng này
         plotData={selectedPlot}
         token={token}
-        fetchLandPlots={fetchLandPlots}
+        fetchLandPlot={fetchLandPlots}
       />
     </div>
   );
