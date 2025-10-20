@@ -472,3 +472,8 @@
   background: #ccc;
   cursor: not-allowed;
 }
+
+.details-header > span {
+  display: flex;
+  gap: 10px;
+}

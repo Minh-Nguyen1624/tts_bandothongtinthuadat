@@ -1,488 +1,10 @@
-// import React, { useState, useEffect, useCallback, useMemo } from "react";
-// import {
-//   MapContainer,
-//   TileLayer,
-//   Polygon,
-//   Marker,
-//   Popup,
-//   ZoomControl,
-//   AttributionControl,
-//   useMap,
-//   useMapEvents,
-// } from "react-leaflet";
-// import L from "leaflet";
-// import axios from "axios";
-// import { FaSearch } from "react-icons/fa";
-// import { processGeometryData } from "../utils/geometryProcessor";
-// import "leaflet/dist/leaflet.css";
-// import "../css/LandUsePlanningMap.css";
-
-// // API gốc
-// const API_URL = "http://127.0.0.1:8000";
-
-// // Icon marker
-// const customIcon = new L.Icon({
-//   iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-//   iconRetinaUrl:
-//     "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-//   iconAnchor: [12, 41],
-//   iconSize: [25, 41],
-// });
-
-// const containerStyle = {
-//   width: "100%",
-//   height: "calc(100vh - 120px)",
-// };
-
-// // ✅ Component cập nhật bản đồ khi thay đổi tâm
-// const UpdateMapView = ({ center, zoom }) => {
-//   const map = useMap();
-//   useEffect(() => {
-//     if (center && Array.isArray(center) && center.length === 2) {
-//       map.setView(center, zoom);
-//     }
-//   }, [map, center, zoom]);
-//   return null;
-// };
-
-// // ✅ Lắng nghe sự kiện click bản đồ
-// const MapEventHandler = ({ onClick }) => {
-//   useMapEvents({
-//     click(e) {
-//       onClick(e);
-//     },
-//   });
-//   return null;
-// };
-
-// // ✅ Hiển thị thông tin popup
-// const PlotInfo = ({ plot }) => (
-//   <div>
-//     <strong>Thông tin lô đất</strong>
-//     <p>Số tờ: {plot.so_to}</p>
-//     <p>Số thửa: {plot.so_thua}</p>
-//     <p>Phường/Xã: {plot.phuong_xa}</p>
-//     {/* <p>Loại đất: {plot.loai_dat || "Chưa xác định"}</p> */}
-//     <p>Loại đất: {plot.ky_hieu_mdsd || "Chưa xác định"}</p>
-//     <p>Diện tích: {plot.dien_tich ? `${plot.dien_tich} m²` : "Không rõ"}</p>
-//     <p>Chủ sở hữu: {plot.ten_chu || "Chưa cập nhật"}</p>
-//   </div>
-// );
-
-// // 🎨 Màu theo mã loại đất thực tế (ONT, ODT, CLN, HCC, DGT, v.v.)
-// export const getColorByLoaiDat = (loai) => {
-//   if (!loai) return "#adb5bd"; // màu xám nhạt cho null
-
-//   const colors = {
-//     // --- Nhóm đất ở ---
-//     ONT: "#ff6b6b", // Đất ở nông thôn
-//     ODT: "#ff8787", // Đất ở đô thị
-//     "ODT+ONT": "#ff6b81",
-//     "ODT+ONT+CLN": "#fa5252",
-//     "ONT+CLN": "#ff9e6b",
-//     "ODT+DGT+HCC": "#e03131",
-
-//     // --- Nhóm đất nông nghiệp / cây lâu năm ---
-//     CLN: "#69db7c", // Cây lâu năm
-//     LUC: "#51cf66", // Lúa
-//     BHK: "#40c057", // Hàng năm khác
-
-//     // --- Nhóm đất giao thông / hạ tầng / công trình ---
-//     DGT: "#4dabf7", // Đất giao thông
-//     HCC: "#748ffc", // Công cộng, hành chính
-//     DHT: "#5c7cfa", // Hạ tầng kỹ thuật
-//     TMD: "#ffa94d", // Thương mại dịch vụ
-//     SKC: "#fab005", // Cơ sở sản xuất
-
-//     // --- Nhóm đất đặc thù ---
-//     NTS: "#20c997", // Nuôi trồng thủy sản
-//     RPH: "#2f9e44", // Rừng phòng hộ
-//     RSX: "#37b24d", // Rừng sản xuất
-//     SONG: "#339af0", // Sông suối
-//     "CLN+ODT": "#ff922b",
-//     "ONT+ODT": "#f76707",
-
-//     // --- Nhóm chưa xác định / hỗn hợp ---
-//     "ODT+CLN": "#fab005",
-//     "ODT+ONT+CLN": "#fd7e14",
-//     "ODT+CLN+HCC": "#e8590c",
-//     "CLN+ONT+ODT": "#ffa94d",
-//   };
-
-//   // Chuẩn hóa key để khớp (loại bỏ khoảng trắng, viết hoa)
-//   const key = loai.trim().toUpperCase();
-
-//   // Trả màu tương ứng hoặc mặc định xám
-//   return colors[key] || "#868e96";
-// };
-
-// // 🎨 Hàm chuyển đổi tọa độ từ GeoJSON sang Leaflet format
-// const convertGeoJSONToLeaflet = (geometry) => {
-//   if (!geometry) {
-//     console.log("convertGeoJSONToLeaflet: No geometry provided");
-//     return null;
-//   }
-
-//   console.log("convertGeoJSONToLeaflet input:", geometry);
-
-//   if (geometry.type === "Point") {
-//     const [lng, lat] = geometry.coordinates;
-//     return [[lat, lng]];
-//   }
-
-//   if (geometry.type === "MultiPoint") {
-//     return geometry.coordinates.map(([lng, lat]) => [lat, lng]);
-//   }
-
-//   if (geometry.type === "Polygon") {
-//     return geometry.coordinates.map((ring) =>
-//       ring.map(([lng, lat]) => [lat, lng])
-//     );
-//   }
-
-//   if (geometry.type === "MultiPolygon") {
-//     return geometry.coordinates.map((polygon) =>
-//       polygon.map((ring) => ring.map(([lng, lat]) => [lat, lng]))
-//     );
-//   }
-
-//   if (geometry.type === "LineString") {
-//     return [geometry.coordinates.map(([lng, lat]) => [lat, lng])];
-//   }
-
-//   console.log(
-//     "convertGeoJSONToLeaflet: Unsupported geometry type:",
-//     geometry.type
-//   );
-//   return null;
-// };
-
-// // Custom hook to get current zoom level
-// const MapZoomHandler = ({ setZoomLevel }) => {
-//   const map = useMap();
-//   useEffect(() => {
-//     const handleZoom = () => setZoomLevel(map.getZoom());
-//     map.on("zoomend", handleZoom);
-//     setZoomLevel(map.getZoom()); // Set initial zoom level
-//     return () => map.off("zoomend", handleZoom);
-//   }, [map, setZoomLevel]);
-//   return null;
-// };
-
-// const LandUsePlanningMap = () => {
-//   const [phuongXa, setPhuongXa] = useState("");
-//   const [soTo, setSoTo] = useState("");
-//   const [soThua, setSoThua] = useState("");
-//   const [landUseData, setLandUseData] = useState([]);
-//   const [center, setCenter] = useState([10.367, 106.345]);
-//   const [error, setError] = useState(null);
-//   const [searchType, setSearchType] = useState("");
-//   const [zoomLevel, setZoomLevel] = useState(30); // Track zoom level
-
-//   const token = localStorage.getItem("token");
-
-//   // 📡 Fetch API + xử lý geom
-//   const fetchLandUseData = useCallback(
-//     async (phuongXa = "", soTo = "", soThua = "") => {
-//       try {
-//         if (!token) {
-//           setError("Vui lòng đăng nhập để tiếp tục.");
-//           return;
-//         }
-
-//         setError(null);
-
-//         const response = await axios.get(`${API_URL}/api/land_plots/`, {
-//           params: {
-//             phuong_xa: phuongXa,
-//             so_to: soTo,
-//             so_thua: soThua,
-//           },
-//           headers: {
-//             Authorization: `Bearer ${token}`,
-//           },
-//         });
-
-//         console.log("API Response:", response.data);
-
-//         if (response.data.success) {
-//           const data = response.data.data
-//             .map((plot, index) => {
-//               console.log(
-//                 `Plot ${index} geom:`,
-//                 plot.geom,
-//                 "Type:",
-//                 typeof plot.geom
-//               );
-
-//               const processedGeom = processGeometryData(plot.geom);
-//               let leafletCoordinates = null;
-
-//               if (processedGeom) {
-//                 leafletCoordinates = convertGeoJSONToLeaflet(processedGeom);
-//               } else {
-//                 console.warn(
-//                   `Failed to process geometry for plot ${index}:`,
-//                   plot.geom
-//                 );
-//                 leafletCoordinates = null;
-//               }
-
-//               console.log(`Plot ${index} processed:`, {
-//                 raw: plot.geom,
-//                 processed: processedGeom,
-//                 leaflet: leafletCoordinates,
-//                 leafletLength: leafletCoordinates
-//                   ? leafletCoordinates.length
-//                   : 0,
-//                 firstPolygon: leafletCoordinates ? leafletCoordinates[0] : null,
-//                 firstRing:
-//                   leafletCoordinates && leafletCoordinates[0]
-//                     ? leafletCoordinates[0][0]
-//                     : null,
-//               });
-
-//               return {
-//                 ...plot,
-//                 geom: leafletCoordinates,
-//                 originalGeom: plot.geom,
-//               };
-//             })
-//             .filter((plot) => plot.geom !== null);
-
-//           console.log("Processed data with valid geometries:", data);
-
-//           setLandUseData(data);
-//           setSearchType(response.data.search_type || "suggest");
-
-//           const validPlot = data.find(
-//             (plot) => plot.geom && plot.geom.length > 0
-//           );
-//           if (validPlot && validPlot.geom) {
-//             const firstPolygon = validPlot.geom[0];
-//             if (firstPolygon && firstPolygon[0]) {
-//               const coords = firstPolygon[0];
-//               const lat =
-//                 coords.reduce((sum, coord) => sum + coord[0], 0) /
-//                 coords.length;
-//               const lng =
-//                 coords.reduce((sum, coord) => sum + coord[1], 0) /
-//                 coords.length;
-//               setCenter([lat, lng]);
-//             }
-//           }
-
-//           if (data.length === 0) {
-//             setError(
-//               "Không tìm thấy lô đất phù hợp hoặc không có dữ liệu hình học."
-//             );
-//           } else if (response.data.search_type === "exact") {
-//             setError(null);
-//           } else {
-//             setError(
-//               `Tìm thấy ${data.length} kết quả gợi ý. Vui lòng chọn lô đất phù hợp.`
-//             );
-//           }
-//         } else {
-//           setError(response.data.message || "Không tìm thấy dữ liệu.");
-//           setLandUseData([]);
-//         }
-//       } catch (error) {
-//         console.error("Error fetching land use data:", error);
-//         if (error.response?.status === 400) {
-//           setError(
-//             error.response.data.message || "Vui lòng nhập đầy đủ thông tin."
-//           );
-//         } else if (error.response?.status === 401) {
-//           setError("Vui lòng đăng nhập để tiếp tục.");
-//         } else {
-//           setError("Lỗi khi lấy dữ liệu từ server.");
-//         }
-//         setLandUseData([]);
-//       }
-//     },
-//     [token]
-//   );
-
-//   const handleSearch = () => {
-//     if (!phuongXa && !soTo && !soThua) {
-//       setError("Nhập ít nhất 1 thông tin để tra cứu.");
-//       return;
-//     }
-//     fetchLandUseData(phuongXa, soTo, soThua);
-//   };
-
-//   const handleMapClick = (e) => {
-//     console.log("Clicked at:", e.latlng);
-//   };
-
-//   useEffect(() => {
-//     fetchLandUseData("Trung An", "", "");
-//   }, [fetchLandUseData]);
-
-//   const renderedPolygons = useMemo(
-//     () =>
-//       landUseData.map((plot, index) => {
-//         if (!plot.geom) {
-//           return (
-//             <Marker
-//               key={`marker-${index}`}
-//               position={center}
-//               icon={customIcon}
-//               eventHandlers={{
-//                 click: () => console.log("Plot clicked:", plot),
-//               }}
-//             >
-//               <Popup>
-//                 <PlotInfo plot={plot} />
-//                 <div style={{ color: "orange", marginTop: "10px" }}>
-//                   <small>⚠️ Không có dữ liệu hình học cho lô đất này</small>
-//                 </div>
-//               </Popup>
-//             </Marker>
-//           );
-//         }
-
-//         // const fillColor = getColorByLoaiDat(plot.loai_dat);
-//         const fillColor = getColorByLoaiDat(plot.ky_hieu_mdsd);
-
-//         // Render polygons only when zoomed in (e.g., zoom level >= 15)
-//         if (zoomLevel < 15) return null;
-
-//         return plot.geom.map((polygonCoords, polyIndex) => (
-//           <Polygon
-//             key={`${index}-${polyIndex}`}
-//             positions={polygonCoords}
-//             pathOptions={{
-//               color: fillColor,
-//               fillColor: fillColor,
-//               fillOpacity: 0.6,
-//               weight: 2,
-//             }}
-//             eventHandlers={{
-//               click: () => console.log("Plot clicked:", plot),
-//               mouseover: (e) => {
-//                 e.target.setStyle({ fillOpacity: 0.8, weight: 3 });
-//               },
-//               mouseout: (e) => {
-//                 e.target.setStyle({ fillOpacity: 0.6, weight: 2 });
-//               },
-//             }}
-//           >
-//             <Popup>
-//               <PlotInfo plot={plot} />
-//               <div
-//                 style={{ marginTop: "10px", fontSize: "12px", color: "#666" }}
-//               >
-//                 <strong>Debug info:</strong>
-//                 <div>Số polygon: {plot.geom.length}</div>
-//                 <div>Loại đất: {plot.ky_hieu_mdsd || "Chưa xác định"}</div>
-//                 <div>Màu: {fillColor}</div>
-//               </div>
-//             </Popup>
-//           </Polygon>
-//         ));
-//       }),
-//     [landUseData, center, zoomLevel]
-//   );
-
-//   return (
-//     <>
-//       <div className="title">
-//         <span>Bản đồ quy hoạch sử dụng đất</span>
-//       </div>
-
-//       <div className="header">
-//         <div>
-//           <select
-//             className="select_xa"
-//             value={phuongXa}
-//             onChange={(e) => setPhuongXa(e.target.value)}
-//           >
-//             <option value="">--Chọn Phường/Xã--</option>
-//             <option value="Trung An">Trung An</option>
-//             <option value="Tân Long">Tân Long</option>
-//             <option value="Mỹ Phong">Mỹ Phong</option>
-//           </select>
-//           <input
-//             type="number"
-//             className="so_to"
-//             placeholder="Số Tờ"
-//             value={soTo}
-//             onChange={(e) => setSoTo(e.target.value)}
-//           />
-//           <input
-//             type="number"
-//             className="so_thua"
-//             placeholder="Số Thửa"
-//             value={soThua}
-//             onChange={(e) => setSoThua(e.target.value)}
-//           />
-//           <button className="btn-search" onClick={handleSearch}>
-//             <FaSearch style={{ marginRight: "5px" }} /> Tra cứu
-//           </button>
-//         </div>
-//         <select className="select_qh">
-//           <option value="">Chọn quy hoạch</option>
-//           <option value="Đất ở">Đất ở</option>
-//           <option value="Đất công cộng">Đất công cộng</option>
-//           <option value="Đất nông nghiệp">Đất nông nghiệp</option>
-//         </select>
-//       </div>
-
-//       {error && (
-//         <div
-//           style={{
-//             padding: "10px",
-//             color: searchType === "suggest" ? "orange" : "red",
-//             textAlign: "center",
-//             backgroundColor: searchType === "suggest" ? "#fff3cd" : "#f8d7da",
-//             border: `1px solid ${
-//               searchType === "suggest" ? "#ffeaa7" : "#f5c6cb"
-//             }`,
-//             margin: "10px",
-//             borderRadius: "5px",
-//           }}
-//         >
-//           {error}
-//         </div>
-//       )}
-
-//       <div style={containerStyle}>
-//         <MapContainer
-//           center={center}
-//           // maxZoom={30}
-//           // minZoom={20}
-//           maxZoom={22}
-//           minZoom={13}
-//           style={containerStyle}
-//           zoomControl={false}
-//         >
-//           <TileLayer
-//             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-//             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-//           />
-//           <ZoomControl position="topright" />
-//           <AttributionControl position="bottomright" />
-//           <UpdateMapView center={center} zoom={13} />
-//           <MapEventHandler onClick={handleMapClick} />
-//           <MapZoomHandler setZoomLevel={setZoomLevel} />{" "}
-//           {/* Track zoom level */}
-//           {renderedPolygons}
-//         </MapContainer>
-//       </div>
-//     </>
-//   );
-// };
-
-// export default LandUsePlanningMap;
-
 import React, {
   useState,
   useEffect,
   useCallback,
   useMemo,
   useRef,
+  useDebugValue,
 } from "react";
 import {
   MapContainer,
@@ -498,18 +20,19 @@ import L from "leaflet";
 import axios from "axios";
 import { FaSearch, FaSpinner } from "react-icons/fa";
 import { processGeometryData } from "../utils/geometryProcessor";
+import OverLapHandler from "../Components/OverlapHandler";
 import "leaflet/dist/leaflet.css";
 import "../css/LandUsePlanningMap.css";
 
 const API_URL = "http://127.0.0.1:8000";
 
-// Icon marker
-const customIcon = new L.Icon({
-  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+// Fix for default markers in react-leaflet
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
   iconRetinaUrl:
-    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-  iconAnchor: [12, 41],
-  iconSize: [25, 41],
+    "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png",
+  iconUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png",
+  shadowUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png",
 });
 
 const containerStyle = {
@@ -518,31 +41,17 @@ const containerStyle = {
 };
 
 // ✅ Component Loading
-const LoadingOverlay = ({ isLoading }) =>
-  isLoading && (
-    <div
-      style={{
-        position: "absolute",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        background: "rgba(255,255,255,0.8)",
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        zIndex: 1000,
-      }}
-    >
-      <div style={{ textAlign: "center" }}>
-        <FaSpinner
-          className="spinner"
-          style={{ fontSize: "2em", color: "#007bff" }}
-        />
-        <p>Đang tải dữ liệu...</p>
+const LoadingOverlay = React.memo(
+  ({ isLoading }) =>
+    isLoading && (
+      <div className="loading-overlay">
+        <div className="loading-content">
+          <FaSpinner className="spinner" />
+          <p>Đang tải dữ liệu...</p>
+        </div>
       </div>
-    </div>
-  );
+    )
+);
 
 // ✅ Component cập nhật bản đồ
 const UpdateMapView = ({ center, zoom, shouldUpdate }) => {
@@ -608,43 +117,12 @@ const PlotInfo = ({ plot }) => {
 
       <p>Diện tích: {plot.dien_tich ? `${plot.dien_tich} m²` : "Không rõ"}</p>
       <p>Chủ sở hữu: {plot.ten_chu || "Chưa cập nhật"}</p>
-
-      {/* Hiển thị thông tin phân khu nếu có */}
-      {plot.multiple_land_use && (
-        <div
-          style={{
-            marginTop: "10px",
-            borderTop: "1px solid #ccc",
-            paddingTop: "10px",
-          }}
-        >
-          <strong>Phân khu chi tiết:</strong>
-          {plot.multiple_land_use.map((landUse, index) => (
-            <div
-              key={index}
-              style={{
-                marginTop: "5px",
-                padding: "5px",
-                backgroundColor: getColorByLoaiDat(landUse.loai_dat) + "20",
-                borderLeft: `3px solid ${getColorByLoaiDat(landUse.loai_dat)}`,
-              }}
-            >
-              <div>
-                <strong>{landUse.loai_dat}</strong> - {landUse.dien_tich} m²
-              </div>
-              <div style={{ fontSize: "12px", color: "#666" }}>
-                Tỷ lệ: {landUse.ty_le}%
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 };
 
 // 🎨 Màu theo mã loại đất
-export const getColorByLoaiDat = (loai) => {
+const getColorByLoaiDat = (loai) => {
   if (!loai) return "#adb5bd";
 
   const colors = {
@@ -699,63 +177,12 @@ const convertGeoJSONToLeaflet = (geometry) => {
   return null;
 };
 
-// 🎨 TẠO DỮ LIỆU MẪU VỚI 2 MÀU
-const createSampleMultiColorPlot = () => {
-  const baseLat = 10.367;
-  const baseLng = 106.345;
-
-  // Tạo 2 polygon với màu khác nhau trong cùng 1 lô đất
-  return {
-    so_to: "5",
-    so_thua: "9",
-    phuong_xa: "Trung An",
-    ky_hieu_mdsd: "ONT+CLN",
-    dien_tich: 1020.4,
-    ten_chu: "Nguyễn Văn A",
-    multiple_land_use: [
-      {
-        loai_dat: "ONT",
-        dien_tich: 924.79,
-        ty_le: 90.6,
-        geom: {
-          type: "Polygon",
-          coordinates: [
-            [
-              [baseLng + 0.001, baseLat + 0.001],
-              [baseLng + 0.002, baseLat + 0.001],
-              [baseLng + 0.002, baseLat + 0.002],
-              [baseLng + 0.001, baseLat + 0.002],
-              [baseLng + 0.001, baseLat + 0.001], // Đóng ring
-            ],
-          ],
-        },
-      },
-      {
-        loai_dat: "CLN",
-        dien_tich: 95.62,
-        ty_le: 9.4,
-        geom: {
-          type: "Polygon",
-          coordinates: [
-            [
-              [baseLng + 0.002, baseLat + 0.001],
-              [baseLng + 0.003, baseLat + 0.001],
-              [baseLng + 0.003, baseLat + 0.002],
-              [baseLng + 0.002, baseLat + 0.002],
-              [baseLng + 0.002, baseLat + 0.001], // Đóng ring
-            ],
-          ],
-        },
-      },
-    ],
-  };
-};
-
 const LandUsePlanningMap = () => {
   const [phuongXa, setPhuongXa] = useState("");
   const [soTo, setSoTo] = useState("");
   const [soThua, setSoThua] = useState("");
   const [landUseData, setLandUseData] = useState([]);
+  const [overlapData, setOverlapData] = useState(null);
   const [mapCenter, setMapCenter] = useState([10.367, 106.345]);
   const [searchCenter, setSearchCenter] = useState([10.367, 106.345]);
   const [error, setError] = useState(null);
@@ -764,7 +191,8 @@ const LandUsePlanningMap = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [lastSearchTime, setLastSearchTime] = useState(0);
   const [shouldUpdateView, setShouldUpdateView] = useState(false);
-  const [useSampleData, setUseSampleData] = useState(false); // Thêm state cho dữ liệu mẫu
+  const [displayMode, setDisplayMode] = useState("single");
+  const [currentOverlapIndex, setCurrentOverlapIndex] = useState(0);
 
   const token = localStorage.getItem("token");
   const searchTimeoutRef = useRef(null);
@@ -781,7 +209,7 @@ const LandUsePlanningMap = () => {
       }
 
       try {
-        if (!token && !useSampleData) {
+        if (!token) {
           setError("Vui lòng đăng nhập để tiếp tục.");
           return;
         }
@@ -789,36 +217,9 @@ const LandUsePlanningMap = () => {
         setIsLoading(true);
         setError(null);
         setShouldUpdateView(false);
+        setOverlapData(null);
 
-        // Nếu dùng dữ liệu mẫu
-        if (useSampleData) {
-          searchTimeoutRef.current = setTimeout(() => {
-            const samplePlot = createSampleMultiColorPlot();
-
-            // Xử lý geometry cho từng phân khu
-            const processedPlot = {
-              ...samplePlot,
-              multiple_land_use: samplePlot.multiple_land_use.map(
-                (landUse) => ({
-                  ...landUse,
-                  leafletCoords: convertGeoJSONToLeaflet(landUse.geom),
-                })
-              ),
-            };
-
-            setLandUseData([processedPlot]);
-            setSearchType("exact");
-            setSearchCenter([10.367, 106.345]);
-            setMapCenter([10.367, 106.345]);
-            setShouldUpdateView(true);
-            setZoomLevel(18);
-            setIsLoading(false);
-          }, 100);
-          return;
-        }
-
-        // Fetch từ API thật
-        const response = await axios.get(`${API_URL}/api/land_plots/`, {
+        const response = await axios.get(`${API_URL}/api/land_plots`, {
           params: { phuong_xa: phuongXa, so_to: soTo, so_thua: soThua },
           headers: { Authorization: `Bearer ${token}` },
           timeout: 10000,
@@ -891,12 +292,25 @@ const LandUsePlanningMap = () => {
         setIsLoading(false);
       }
     },
-    [token, lastSearchTime, useSampleData]
+    [token, lastSearchTime]
   );
 
+  // ✅ CALLBACK ĐỂ NHẬN DỮ LIỆU TỪ OVERLAPHANDLER
+  const handleOverlapData = useCallback((data) => {
+    console.log("📊 Overlap data received:", data);
+    setOverlapData(data);
+
+    if (data.overlap_group?.has_overlap) {
+      setDisplayMode("alternating");
+      setCurrentOverlapIndex(0);
+    } else {
+      setDisplayMode("single");
+    }
+  }, []);
+
   const handleSearch = () => {
-    if (!phuongXa && !soTo && !soThua && !useSampleData) {
-      setError("Nhập ít nhất 1 thông tin để tra cứu hoặc chọn dữ liệu mẫu.");
+    if (!phuongXa && !soTo && !soThua) {
+      setError("Nhập ít nhất 1 thông tin để tra cứu.");
       return;
     }
     fetchLandUseData(phuongXa, soTo, soThua);
@@ -916,87 +330,146 @@ const LandUsePlanningMap = () => {
     fetchLandUseData("Trung An", "", "");
   }, [fetchLandUseData]);
 
-  // ✅ Render polygons với nhiều màu
+  // ✅ Render polygons với chế độ chồng lấn
   const renderedPolygons = useMemo(() => {
     if (isLoading) return null;
 
-    return landUseData.map((plot, index) => {
-      // Nếu plot có multiple_land_use, render từng phân khu
-      if (plot.multiple_land_use && plot.multiple_land_use.length > 0) {
-        return plot.multiple_land_use.map((landUse, landUseIndex) => {
-          if (!landUse.leafletCoords) return null;
+    // Tính toán opacity và weight dựa trên zoom level
+    // const getStyleByZoom = () => {
+    //   if (zoomLevel >= 16) return { opacity: 0.7, weight: 2 };
+    //   if (zoomLevel >= 14) return { opacity: 0.6, weight: 1.5 };
+    //   if (zoomLevel >= 12) return { opacity: 0.5, weight: 1 };
+    //   return { opacity: 0.4, weight: 0.5 }; // Vẫn hiển thị ở zoom thấp
+    // };
+    // 🎨 Hàm điều chỉnh style theo mức zoom - TỐI ƯU LẠI
+    const getStyleByZoom = (zoom) => {
+      const zoomLevel = zoom || 15;
 
-          const fillColor = getColorByLoaiDat(landUse.loai_dat);
-          const opacity = zoomLevel >= 16 ? 0.7 : 0.4;
-          const weight = zoomLevel >= 16 ? 2 : 1;
-
-          return landUse.leafletCoords.map((polygonCoords, polyIndex) => (
-            <Polygon
-              key={`${index}-${landUseIndex}-${polyIndex}`}
-              positions={polygonCoords}
-              pathOptions={{
-                color: fillColor,
-                fillColor: fillColor,
-                fillOpacity: opacity,
-                weight: weight,
-              }}
-              eventHandlers={{
-                mouseover: (e) => {
-                  e.target.setStyle({
-                    fillOpacity: Math.min(opacity + 0.2, 0.9),
-                    weight: weight + 1,
-                  });
-                },
-                mouseout: (e) => {
-                  e.target.setStyle({
-                    fillOpacity: opacity,
-                    weight: weight,
-                  });
-                },
-              }}
-            >
-              <Popup>
-                <PlotInfo plot={plot} />
-              </Popup>
-            </Polygon>
-          ));
-        });
+      // ✅ ĐẢM BẢO: Luôn hiển thị rõ khi zoom lớn
+      switch (true) {
+        case zoomLevel >= 20: // Rất rất gần
+          return { opacity: 0.9, weight: 4, dashArray: null };
+        case zoomLevel >= 18: // Rất gần
+          return { opacity: 0.85, weight: 3, dashArray: null };
+        case zoomLevel >= 16: // Gần
+          return { opacity: 0.8, weight: 2.5, dashArray: null };
+        case zoomLevel >= 14: // Trung bình
+          return { opacity: 0.7, weight: 2, dashArray: null };
+        case zoomLevel >= 12: // Xa
+          return { opacity: 0.6, weight: 1.5, dashArray: null };
+        case zoomLevel >= 10: // Rất xa
+          return { opacity: 0.5, weight: 1, dashArray: "2,2" };
+        case zoomLevel >= 8: // Cực xa
+          return { opacity: 0.4, weight: 0.8, dashArray: "3,3" };
+        default: // Mặc định - vẫn hiển thị
+          return { opacity: 0.3, weight: 0.6, dashArray: "4,4" };
       }
+    };
 
-      // Xử lý plot thông thường (không có multiple_land_use)
-      if (!plot.geom) {
-        return (
-          <Marker
-            key={`marker-${index}`}
-            position={mapCenter}
-            icon={customIcon}
+    const style = getStyleByZoom();
+
+    // Nếu có dữ liệu chồng lấn và đang ở chế độ chồng lấn
+    if (overlapData && overlapData.features && displayMode !== "single") {
+      return overlapData.features.map((feature, index) => {
+        const geometry = feature.geometry;
+        const properties = feature.properties || {};
+        const leafletCoords = convertGeoJSONToLeaflet(geometry);
+
+        if (!leafletCoords) return null;
+
+        let featureOpacity = style.opacity;
+        let featureWeight = style.weight;
+
+        if (displayMode === "alternating" && index !== currentOverlapIndex) {
+          featureOpacity = 0.2;
+          featureWeight = 1;
+        } else if (displayMode === "all") {
+          featureOpacity = 0.5;
+          featureWeight = 1;
+        }
+
+        // Đảm bảo vẫn hiển thị ngay cả ở zoom thấp
+        if (zoomLevel < 12) {
+          featureOpacity = Math.max(0.3, featureOpacity);
+          featureWeight = Math.max(0.5, featureWeight);
+        }
+
+        return leafletCoords.map((polygonCoords, polyIndex) => (
+          <Polygon
+            key={`overlap-${properties.id || index}-${polyIndex}`}
+            positions={polygonCoords}
+            pathOptions={{
+              color: properties.primary_color || "#ff6b6b",
+              fillColor: properties.primary_color || "#ff6b6b",
+              fillOpacity: featureOpacity,
+              weight: featureWeight,
+              // Thêm stroke để dễ nhìn hơn
+              stroke: true,
+              lineJoin: "round",
+            }}
           >
             <Popup>
-              <PlotInfo plot={plot} />
-              <div style={{ color: "orange", marginTop: "10px" }}>
-                <small>⚠️ Không có dữ liệu hình học</small>
+              <div style={{ minWidth: "250px" }}>
+                <strong>
+                  Thửa đất #{properties.display_order || index + 1}
+                </strong>
+                <p>Số tờ: {properties.so_to}</p>
+                <p>Số thửa: {properties.so_thua}</p>
+                <p>Loại đất: {properties.land_type || "Chưa xác định"}</p>
+                <p>Diện tích: {properties.area || 0}m²</p>
+                <p>Chủ sở hữu: {properties.owner || "Chưa có"}</p>
+                <p>Phường/Xã: {properties.phuong_xa}</p>
+                <div style={{ marginTop: "10px" }}>
+                  <strong>Phân loại:</strong>
+                  {(properties.land_types || []).map((type, i) => (
+                    <span
+                      key={i}
+                      style={{
+                        display: "inline-block",
+                        margin: "2px 4px",
+                        padding: "2px 6px",
+                        backgroundColor: getColorByLoaiDat(type),
+                        color: "white",
+                        borderRadius: "3px",
+                        fontSize: "10px",
+                      }}
+                    >
+                      {type}
+                    </span>
+                  ))}
+                </div>
               </div>
             </Popup>
-          </Marker>
-        );
-      }
+          </Polygon>
+        ));
+      });
+    }
+
+    // Render bình thường nếu không có chồng lấn
+    return landUseData.map((plot, index) => {
+      if (!plot.geom) return null;
 
       const landUseTypes = plot.ky_hieu_mdsd
         ? plot.ky_hieu_mdsd.split("+").map((type) => type.trim())
-        : [plot.ky_hieu_mdsd];
+        : [plot.ky_hieu_mdsd || "Chưa xác định"];
       const fillColor = getColorByLoaiDat(landUseTypes[0]);
-      const opacity = zoomLevel >= 16 ? 0.7 : 0.4;
-      const weight = zoomLevel >= 16 ? 2 : 1;
+
+      // Điều chỉnh style dựa trên zoom level
+      const plotStyle = getStyleByZoom();
 
       return plot.geom.map((polygonCoords, polyIndex) => (
         <Polygon
-          key={`${index}-${polyIndex}`}
+          key={`${plot.id || index}-${polyIndex}`}
           positions={polygonCoords}
           pathOptions={{
             color: fillColor,
             fillColor: fillColor,
-            fillOpacity: opacity,
-            weight: weight,
+            fillOpacity: plotStyle.opacity,
+            weight: plotStyle.weight,
+            // Thêm các thuộc tính để dễ nhìn hơn
+            stroke: true,
+            lineJoin: "round",
+            dashArray: zoomLevel < 14 ? "3,3" : null, // Đường nét đứt khi zoom xa
           }}
         >
           <Popup>
@@ -1005,7 +478,76 @@ const LandUsePlanningMap = () => {
         </Polygon>
       ));
     });
-  }, [landUseData, mapCenter, zoomLevel, isLoading]);
+  }, [
+    landUseData,
+    overlapData,
+    displayMode,
+    currentOverlapIndex,
+    zoomLevel,
+    isLoading,
+  ]);
+
+  // Hàm xử lý khi lô đất được cập nhật thành công
+  const handlePlotUpdated = (updatedPlot) => {
+    setLandUseData((prevData) =>
+      prevData.map((plot) =>
+        plot.id === updatedPlot.id
+          ? {
+              ...plot,
+              ...updatedPlot,
+              geom: convertGeoJSONToLeaflet(
+                processGeometryData(updatedPlot.geom)
+              ),
+            }
+          : plot
+      )
+    );
+
+    // Nếu bạn muốn map tự focus vào thửa đất vừa cập nhật
+    if (updatedPlot.geom) {
+      const processedGeom = processGeometryData(updatedPlot.geom);
+      const leafletCoords = convertGeoJSONToLeaflet(processedGeom);
+      if (leafletCoords?.[0]?.[0]) {
+        const coords = leafletCoords[0][0];
+        const lat =
+          coords.reduce((sum, coord) => sum + coord[0], 0) / coords.length;
+        const lng =
+          coords.reduce((sum, coord) => sum + coord[1], 0) / coords.length;
+        setMapCenter([lat, lng]);
+        setSearchCenter([lat, lng]);
+        setShouldUpdateView(true);
+        setZoomLevel(18);
+      }
+    }
+  };
+
+  // ✅ Component để điều chỉnh map behavior
+  const MapBehaviorHandler = ({ setZoomLevel }) => {
+    const map = useMap();
+
+    useEffect(() => {
+      const handleZoom = () => {
+        const currentZoom = map.getZoom();
+        setZoomLevel(currentZoom);
+
+        // Force re-render khi zoom thay đổi
+        map.invalidateSize();
+      };
+
+      map.on("zoomend", handleZoom);
+      map.on("moveend", handleZoom);
+
+      // Khởi tạo giá trị
+      setZoomLevel(map.getZoom());
+
+      return () => {
+        map.off("zoomend", handleZoom);
+        map.off("moveend", handleZoom);
+      };
+    }, [map, setZoomLevel]);
+
+    return null;
+  };
 
   // ✅ Cleanup timeout khi component unmount
   useEffect(() => {
@@ -1060,23 +602,6 @@ const LandUsePlanningMap = () => {
             )}
             {isLoading ? "Đang tải..." : "Tra cứu"}
           </button>
-
-          {/* ✅ Nút để test dữ liệu mẫu với 2 màu */}
-          <button
-            className="btn-sample"
-            onClick={() => setUseSampleData(true)}
-            style={{
-              marginLeft: "10px",
-              padding: "8px 15px",
-              backgroundColor: "#28a745",
-              color: "white",
-              border: "none",
-              borderRadius: "4px",
-              cursor: "pointer",
-            }}
-          >
-            📊 Dữ liệu mẫu 2 màu
-          </button>
         </div>
         <select className="select_qh">
           <option value="">Chọn quy hoạch</option>
@@ -1088,40 +613,36 @@ const LandUsePlanningMap = () => {
 
       {error && (
         <div
-          style={{
-            padding: "10px",
-            color: searchType === "suggest" ? "orange" : "red",
-            textAlign: "center",
-            backgroundColor: searchType === "suggest" ? "#fff3cd" : "#f8d7da",
-            border: `1px solid ${
-              searchType === "suggest" ? "#ffeaa7" : "#f5c6cb"
-            }`,
-            margin: "10px",
-            borderRadius: "5px",
-          }}
+          className={`error-message ${
+            searchType === "suggest" ? "warning" : "error"
+          }`}
         >
           {error}
         </div>
       )}
 
-      {useSampleData && (
-        <div
-          style={{
-            padding: "10px",
-            color: "green",
-            textAlign: "center",
-            backgroundColor: "#d4edda",
-            border: "1px solid #c3e6cb",
-            margin: "10px",
-            borderRadius: "5px",
-          }}
-        >
-          🎨 Đang hiển thị dữ liệu mẫu với 2 màu (ĐẤT Ở + CÂY LÂU NĂM)
-        </div>
-      )}
-
       <div style={containerStyle}>
         <LoadingOverlay isLoading={isLoading} />
+
+        {/* ✅ OverLapHandler Component */}
+        <div
+          style={{
+            position: "absolute",
+            top: "120px",
+            right: "15px",
+            zIndex: 1000,
+            maxWidth: "320px",
+          }}
+        >
+          <OverLapHandler
+            soTo={soTo}
+            soThua={soThua}
+            phuongXa={phuongXa}
+            onOverlapData={handleOverlapData}
+            onPlotUpdated={handlePlotUpdated}
+          />
+        </div>
+
         <MapContainer
           center={mapCenter}
           zoom={zoomLevel}
@@ -1129,12 +650,17 @@ const LandUsePlanningMap = () => {
           zoomControl={false}
           maxZoom={22}
           minZoom={10}
-          wheelPxPerZoomLevel={60}
+          zoomSnap={0.5}
+          zoomDelta={0.5}
         >
           <TileLayer
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             maxZoom={22}
+            minZoom={8}
+            noWrap={true}
+            maxNativeZoom={19} // OpenStreetMap thường chỉ hỗ trợ đến 19
+            // noWrap={true}
           />
           <ZoomControl position="topright" />
           <AttributionControl position="bottomright" />
@@ -1147,20 +673,6 @@ const LandUsePlanningMap = () => {
           {renderedPolygons}
         </MapContainer>
       </div>
-
-      <style jsx>{`
-        .spinner {
-          animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-          from {
-            transform: rotate(0deg);
-          }
-          to {
-            transform: rotate(360deg);
-          }
-        }
-      `}</style>
     </>
   );
 };

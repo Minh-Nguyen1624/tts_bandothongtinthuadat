@@ -99,6 +99,8 @@ Route::middleware('auth:api')->group(function() {
         Route::get('/{id}', [PlotListController::class, 'show']);
     });
     Route::prefix('land_plots')->group(function(){
+        Route::get('/check-overlap', [LandPlotsController::class, 'checkOverlap']);
+        Route::get('/overlap-group', [LandPlotsController::class, 'getOverlapGroup']);
         Route::get('/', [LandPlotsController::class, 'index']);
         Route::get('/search', [LandPlotsController::class, 'search']);
         Route::get('/{id}', [LandPlotsController::class, 'show']);
@@ -141,6 +143,8 @@ Route::middleware([AdminMiddleware::class])->group(function() {
     }); 
 
     Route::prefix('land_plots')->group(function(){
+        Route::get('/check-overlap', [LandPlotsController::class, 'checkOverlap']);
+        Route::get('/overlap-group', [LandPlotsController::class, 'getOverlapGroup']);
         Route::get('/geometry', [LandPlotsController::class, 'getGeometry']);    
         // Route::get('/{so_to}/{so_thua}/geometry', [LandPlotsController::class, 'getGeometryByParams']);
         Route::get('/land-plots/geojson', [LandPlotsController::class, 'getGeoJson']);
