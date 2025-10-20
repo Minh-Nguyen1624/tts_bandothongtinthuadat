@@ -1,144 +1,3 @@
-// import React, { useState, useEffect } from "react";
-// import { useNavigate } from "react-router-dom";
-// import axios from "axios";
-
-// const API_URL = "http://127.0.0.1:8000";
-
-// const OverLapHandler = ({ soTo, soThua, phuongXa, onViewLapData }) => {
-//   const [overLapGroup, setOverLapGroup] = useState(null);
-//   const [currentIndex, setCurrent] = useState(0);
-//   const [error, setError] = useState(null);
-//   const [isLoading, setIsLoading] = useState(false);
-
-//   const token = localStorage.getItem("token");
-
-//   const navigate = useNavigate();
-
-//   console.log(overLapGroup);
-//   useEffect(() => {
-//     if (soTo && soThua && phuongXa) {
-//       checkOverLap(soTo, soThua, phuongXa);
-//     }
-//   }, [soTo, soThua, phuongXa]);
-
-//   const checkOverLap = async (soTo, soThua, phuongXa) => {
-//     if (!token) {
-//       navigate("/login");
-//       return setError("Vui lòng đăng nhập để tiếp tục.");
-//     }
-//     try {
-//       const response = await axios.get(
-//         `${API_URL}/api/land_plots/overlap-group`,
-//         {
-//           params: { so_to: soTo, so_thua: soThua, phuong_xa: phuongXa },
-//           headers: {
-//             Authorization: `Bearer ${token}`,
-//             "Content-Type": "application/json",
-//           },
-//           timeout: 10000,
-//         }
-//       );
-
-//       console.log("check response", response.data);
-
-//       if (response.data.success) {
-//         // setOverLapGroup(response.data.data);
-//         setOverLapGroup(response.data);
-
-//         if (onViewLapData) {
-//           onViewLapData(response.data.data);
-//         }
-
-//         setError(null);
-//       } else {
-//         setError(response.data.message || "Không tìm thấy dữ liệu chồng lấn.");
-//       }
-//     } catch (error) {
-//       console.error("❌ Overlap group error:", error);
-//       setError("Lỗi khi lấy thông tin chồng lấn.");
-//     } finally {
-//       setError(null);
-//       setIsLoading(false);
-//     }
-//   };
-
-//   const getColorByLandType = (landType) => {
-//     const color = {
-//       ONT: "#ff6b6b",
-//       ODT: "#ff8787",
-//       CLN: "#69db7c",
-//       LUC: "#51cf66",
-//       BHK: "#40c057",
-//       DGT: "#4dabf7",
-//       HCC: "#748ffc",
-//       SONG: "#339af0",
-//       NTS: "#20c997",
-//     };
-//     return color[landType] || "#000000";
-//   };
-
-//   if (!overLapGroup || !overLapGroup.overlap_group.has_overlap) {
-//     return (
-//       <div className="overlap-controls">
-//         <div className="overlap-info">
-//           ✅ {overLapGroup?.overlap_group?.message || "Không có chồng lấn"}
-//           <div className="overlap-subtitle">
-//             Số tờ: {soTo} - Số thửa: {soThua}
-//           </div>
-//         </div>
-//       </div>
-//     );
-//   }
-
-//   return (
-//     <div className="overlap-controls">
-//       <div className="overlap-warning">
-//         ⚠️ {overLapGroup.overlap_group.message}
-//         <div className="overlap-subtitle">
-//           Số tờ: {soTo} - Số thửa: {soThua}
-//         </div>
-//       </div>
-
-//       <div className="plot-list">
-//         <div className="plot-list-title">Danh sách thửa:</div>
-//         {overLapGroup.features.map((feature, index) => (
-//           <div
-//             key={feature.properties.id}
-//             className="plot-item"
-//             style={{
-//               borderLeft: `4px solid ${feature.properties.primary_color}`,
-//             }}
-//           >
-//             <div className="plot-type">
-//               <span
-//                 className="color-badge"
-//                 style={{ backgroundColor: feature.properties.primary_color }}
-//               ></span>
-//               <strong>{feature.properties.land_type}</strong>
-//             </div>
-//             <div className="plot-details">
-//               <span className="plot-area">{feature.properties.area}m²</span>
-//               {feature.properties.owner && (
-//                 <span className="plot-owner">{feature.properties.owner}</span>
-//               )}
-//             </div>
-//             <div className="land-types">
-//               {feature.properties.land_types.map((type, i) => (
-//                 <span key={i} className="land-type-tag">
-//                   {type}
-//                 </span>
-//               ))}
-//             </div>
-//           </div>
-//         ))}
-//       </div>
-//     </div>
-//   );
-// };
-
-// // export default React.memo(OverLapHandler);
-// export default OverLapHandler;
-
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
@@ -146,6 +5,7 @@ import "../css/OverlapHandler.css";
 
 const API_URL = "http://127.0.0.1:8000";
 
+// Trong OverLapHandler.js
 const OverLapHandler = ({ soTo, soThua, phuongXa, onOverlapData }) => {
   const [overlapGroup, setOverlapGroup] = useState(null);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -177,11 +37,7 @@ const OverLapHandler = ({ soTo, soThua, phuongXa, onOverlapData }) => {
       const response = await axios.get(
         `${API_URL}/api/land_plots/overlap-group`,
         {
-          params: {
-            so_to: soTo,
-            so_thua: soThua,
-            phuong_xa: phuongXa,
-          },
+          params: { so_to: soTo, so_thua: soThua, phuong_xa: phuongXa },
           headers: {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
@@ -195,7 +51,7 @@ const OverLapHandler = ({ soTo, soThua, phuongXa, onOverlapData }) => {
       if (response.data.success) {
         setOverlapGroup(response.data);
 
-        // ✅ TRUYỀN DỮ LIỆU LÊN COMPONENT CHA
+        // Truyền dữ liệu lên component cha
         if (onOverlapData) {
           onOverlapData(response.data);
         }
@@ -229,20 +85,20 @@ const OverLapHandler = ({ soTo, soThua, phuongXa, onOverlapData }) => {
 
   const getColorByLandType = (landType) => {
     const colors = {
-      ONT: "#ff6b6b",
+      CAN: "#ff6b6b", // Thêm CAN
       ODT: "#ff8787",
+      DGT: "#4dabf7",
       CLN: "#69db7c",
       LUC: "#51cf66",
       BHK: "#40c057",
-      DGT: "#4dabf7",
       HCC: "#748ffc",
       SONG: "#339af0",
       NTS: "#20c997",
+      ONT: "#ff6b6b",
     };
     return colors[landType] || "#868e96";
   };
 
-  // ✅ HIỂN THỊ LOADING
   if (isLoading) {
     return (
       <div className="overlap-controls">
@@ -254,7 +110,6 @@ const OverLapHandler = ({ soTo, soThua, phuongXa, onOverlapData }) => {
     );
   }
 
-  // ✅ HIỂN THỊ LỖI
   if (error) {
     return (
       <div className="overlap-controls">
@@ -271,17 +126,14 @@ const OverLapHandler = ({ soTo, soThua, phuongXa, onOverlapData }) => {
     );
   }
 
-  // ✅ NẾU KHÔNG CÓ SỐ TỜ, SỐ THỬA, PHƯỜNG/XÃ
   if (!soTo || !soThua || !phuongXa) {
     return null;
   }
 
-  // ✅ NẾU CHƯA CÓ DỮ LIỆU
   if (!overlapGroup) {
     return null;
   }
 
-  // ✅ KIỂM TRA CÓ CHỒNG LẤN HAY KHÔNG
   if (!overlapGroup.overlap_group?.has_overlap) {
     return (
       <div className="overlap-controls">
@@ -298,7 +150,6 @@ const OverLapHandler = ({ soTo, soThua, phuongXa, onOverlapData }) => {
     );
   }
 
-  // ✅ RENDER KHI CÓ CHỒNG LẤN
   return (
     <div className="overlap-controls">
       <div className="overlap-warning">
@@ -311,67 +162,67 @@ const OverLapHandler = ({ soTo, soThua, phuongXa, onOverlapData }) => {
       </div>
 
       <div className="plot-list">
-        <div className="plot-list-title">Danh sách thửa:</div>
-        {overlapGroup.features &&
-          overlapGroup.features.map((feature, index) => (
-            <div
-              key={feature.properties?.id || index}
-              className="plot-item"
-              style={{
-                borderLeft: `4px solid ${
-                  feature.properties?.primary_color || "#868e96"
-                }`,
-              }}
-            >
-              <div className="plot-type">
-                <span
-                  className="color-badge"
-                  style={{
-                    backgroundColor:
-                      feature.properties?.primary_color || "#868e96",
-                  }}
-                ></span>
-                <strong>
-                  {feature.properties?.land_type || "Chưa xác định"}
-                </strong>
-              </div>
-              <div className="plot-details">
-                <span className="plot-area">
-                  {feature.properties?.area || 0}m²
-                </span>
-                {feature.properties?.owner && (
-                  <span className="plot-owner">{feature.properties.owner}</span>
-                )}
-              </div>
-              <div className="land-types">
-                {feature.properties?.land_types &&
-                  feature.properties.land_types.map((type, i) => (
-                    <span
-                      key={i}
-                      className="land-type-tag"
-                      style={{
-                        backgroundColor: getColorByLandType(type),
-                        color: "white",
-                      }}
-                    >
-                      {type}
-                    </span>
-                  ))}
-              </div>
-              <div className="plot-meta">
-                <small>
-                  Thửa #{feature.properties?.display_order || index + 1}
-                </small>
-                {feature.properties?.organization_name && (
-                  <small>Tổ chức: {feature.properties.organization_name}</small>
-                )}
-              </div>
-            </div>
-          ))}
-      </div>
+        <div className="plot-list-title">Danh sách phân loại đất:</div>
+        {overlapGroup.features.map((feature, index) => {
+          const properties = feature.properties || {};
+          const subGeometries = feature.sub_geometries || [];
 
-      {/* ✅ THÊM CONTROLS ĐỂ CHUYỂN ĐỔI GIỮA CÁC THỬA */}
-      {overlapGroup.features && overlapGroup.features.length > 1 && (
+          return subGeometries.map((subGeom, subGeomIndex) => {
+            // ✅ LUÔN tính màu từ ky_hieu_mdsd
+            const landTypeColor = getColorByLandType(subGeom.ky_hieu_mdsd);
+
+            console.log(`📊 ${subGeom.ky_hieu_mdsd}: ${landTypeColor}`);
+
+            return (
+              <div
+                key={`${properties.id || index}-${subGeomIndex}`}
+                className="plot-item"
+                style={{
+                  borderLeft: `4px solid ${landTypeColor}`,
+                }}
+              >
+                <div className="plot-type">
+                  <span
+                    className="color-badge"
+                    style={{
+                      backgroundColor: landTypeColor,
+                    }}
+                  ></span>
+                  <strong>{subGeom.ky_hieu_mdsd || "Chưa xác định"}</strong>
+                </div>
+                <div className="plot-details">
+                  <span className="plot-area">
+                    {subGeom.dien_tich ? `${subGeom.dien_tich}m²` : "0m²"}
+                  </span>
+                  {properties.owner && (
+                    <span className="plot-owner">{properties.owner}</span>
+                  )}
+                </div>
+
+                {/* ✅ Hiển thị màu đang dùng để debug */}
+                <div
+                  className="debug-info"
+                  style={{ fontSize: "10px", color: "#666", marginTop: "4px" }}
+                >
+                  Màu: {landTypeColor}
+                </div>
+
+                {properties.area_percentages &&
+                  properties.area_percentages[subGeomIndex] && (
+                    <div className="area-percentage">
+                      Tỷ lệ: {properties.area_percentages[subGeomIndex]}%
+                    </div>
+                  )}
+
+                <div className="plot-meta">
+                  <small>Thửa #{properties.display_order || index + 1}</small>
+                </div>
+              </div>
+            );
+          });
+        })}
+      </div>
+      {overlapGroup.features.length > 1 && (
         <div className="overlap-actions">
           <button
             className="action-btn"

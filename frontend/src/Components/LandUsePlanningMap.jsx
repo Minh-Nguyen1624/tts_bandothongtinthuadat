@@ -126,7 +126,9 @@ const getColorByLoaiDat = (loai) => {
   if (!loai) return "#adb5bd";
 
   const colors = {
+    CAN: "#ff0000",
     ONT: "#ff6b6b",
+    // ODT: "#ff8787",
     ODT: "#ff8787",
     CLN: "#69db7c",
     LUC: "#51cf66",
@@ -298,6 +300,23 @@ const LandUsePlanningMap = () => {
   // ✅ CALLBACK ĐỂ NHẬN DỮ LIỆU TỪ OVERLAPHANDLER
   const handleOverlapData = useCallback((data) => {
     console.log("📊 Overlap data received:", data);
+
+    // ✅ KIỂM TRA CẤU TRÚC DỮ LIỆU
+    if (data.features && data.features.length > 0) {
+      data.features.forEach((feature, index) => {
+        console.log(`Feature ${index}:`, feature);
+        if (feature.sub_geometries) {
+          feature.sub_geometries.forEach((subGeom, subIndex) => {
+            console.log(`Sub-geometry ${subIndex}:`, {
+              ky_hieu_mdsd: subGeom.ky_hieu_mdsd,
+              color: subGeom.color,
+              dien_tich: subGeom.dien_tich,
+            });
+          });
+        }
+      });
+    }
+
     setOverlapData(data);
 
     if (data.overlap_group?.has_overlap) {
@@ -331,121 +350,136 @@ const LandUsePlanningMap = () => {
   }, [fetchLandUseData]);
 
   // ✅ Render polygons với chế độ chồng lấn
+  // Trong LandUsePlanningMap.js - phần renderedPolygons
+  // ✅ Render polygons với chế độ chồng lấn - FIXED
   const renderedPolygons = useMemo(() => {
     if (isLoading) return null;
 
-    // Tính toán opacity và weight dựa trên zoom level
-    // const getStyleByZoom = () => {
-    //   if (zoomLevel >= 16) return { opacity: 0.7, weight: 2 };
-    //   if (zoomLevel >= 14) return { opacity: 0.6, weight: 1.5 };
-    //   if (zoomLevel >= 12) return { opacity: 0.5, weight: 1 };
-    //   return { opacity: 0.4, weight: 0.5 }; // Vẫn hiển thị ở zoom thấp
-    // };
-    // 🎨 Hàm điều chỉnh style theo mức zoom - TỐI ƯU LẠI
     const getStyleByZoom = (zoom) => {
       const zoomLevel = zoom || 15;
-
-      // ✅ ĐẢM BẢO: Luôn hiển thị rõ khi zoom lớn
       switch (true) {
-        case zoomLevel >= 20: // Rất rất gần
+        case zoomLevel >= 20:
           return { opacity: 0.9, weight: 4, dashArray: null };
-        case zoomLevel >= 18: // Rất gần
+        case zoomLevel >= 18:
           return { opacity: 0.85, weight: 3, dashArray: null };
-        case zoomLevel >= 16: // Gần
+        case zoomLevel >= 16:
           return { opacity: 0.8, weight: 2.5, dashArray: null };
-        case zoomLevel >= 14: // Trung bình
+        case zoomLevel >= 14:
           return { opacity: 0.7, weight: 2, dashArray: null };
-        case zoomLevel >= 12: // Xa
+        case zoomLevel >= 12:
           return { opacity: 0.6, weight: 1.5, dashArray: null };
-        case zoomLevel >= 10: // Rất xa
+        case zoomLevel >= 10:
           return { opacity: 0.5, weight: 1, dashArray: "2,2" };
-        case zoomLevel >= 8: // Cực xa
+        case zoomLevel >= 8:
           return { opacity: 0.4, weight: 0.8, dashArray: "3,3" };
-        default: // Mặc định - vẫn hiển thị
+        default:
           return { opacity: 0.3, weight: 0.6, dashArray: "4,4" };
       }
     };
 
-    const style = getStyleByZoom();
+    const style = getStyleByZoom(zoomLevel);
 
-    // Nếu có dữ liệu chồng lấn và đang ở chế độ chồng lấn
+    // Xử lý dữ liệu chồng lấn
     if (overlapData && overlapData.features && displayMode !== "single") {
-      return overlapData.features.map((feature, index) => {
-        const geometry = feature.geometry;
+      console.log("🎨 Rendering overlap data:", overlapData);
+
+      return overlapData.features.flatMap((feature, featureIndex) => {
         const properties = feature.properties || {};
-        const leafletCoords = convertGeoJSONToLeaflet(geometry);
+        const subGeometries = feature.sub_geometries || [];
 
-        if (!leafletCoords) return null;
+        return subGeometries
+          .map((subGeom, subIndex) => {
+            const leafletCoords = convertGeoJSONToLeaflet(subGeom.geometry);
+            if (!leafletCoords) return null;
 
-        let featureOpacity = style.opacity;
-        let featureWeight = style.weight;
+            // ✅ QUAN TRỌNG: Luôn tính màu từ ky_hieu_mdsd
+            const landTypeColor =
+              subGeom.color || getColorByLoaiDat(subGeom.ky_hieu_mdsd);
 
-        if (displayMode === "alternating" && index !== currentOverlapIndex) {
-          featureOpacity = 0.2;
-          featureWeight = 1;
-        } else if (displayMode === "all") {
-          featureOpacity = 0.5;
-          featureWeight = 1;
-        }
+            console.log(
+              `🎨 Rendering ${subGeom.ky_hieu_mdsd} with color:`,
+              landTypeColor
+            );
 
-        // Đảm bảo vẫn hiển thị ngay cả ở zoom thấp
-        if (zoomLevel < 12) {
-          featureOpacity = Math.max(0.3, featureOpacity);
-          featureWeight = Math.max(0.5, featureWeight);
-        }
+            let featureOpacity = style.opacity;
+            let featureWeight = style.weight;
 
-        return leafletCoords.map((polygonCoords, polyIndex) => (
-          <Polygon
-            key={`overlap-${properties.id || index}-${polyIndex}`}
-            positions={polygonCoords}
-            pathOptions={{
-              color: properties.primary_color || "#ff6b6b",
-              fillColor: properties.primary_color || "#ff6b6b",
-              fillOpacity: featureOpacity,
-              weight: featureWeight,
-              // Thêm stroke để dễ nhìn hơn
-              stroke: true,
-              lineJoin: "round",
-            }}
-          >
-            <Popup>
-              <div style={{ minWidth: "250px" }}>
-                <strong>
-                  Thửa đất #{properties.display_order || index + 1}
-                </strong>
-                <p>Số tờ: {properties.so_to}</p>
-                <p>Số thửa: {properties.so_thua}</p>
-                <p>Loại đất: {properties.land_type || "Chưa xác định"}</p>
-                <p>Diện tích: {properties.area || 0}m²</p>
-                <p>Chủ sở hữu: {properties.owner || "Chưa có"}</p>
-                <p>Phường/Xã: {properties.phuong_xa}</p>
-                <div style={{ marginTop: "10px" }}>
-                  <strong>Phân loại:</strong>
-                  {(properties.land_types || []).map((type, i) => (
-                    <span
-                      key={i}
-                      style={{
-                        display: "inline-block",
-                        margin: "2px 4px",
-                        padding: "2px 6px",
-                        backgroundColor: getColorByLoaiDat(type),
-                        color: "white",
-                        borderRadius: "3px",
-                        fontSize: "10px",
-                      }}
-                    >
-                      {type}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </Popup>
-          </Polygon>
-        ));
+            if (
+              displayMode === "alternating" &&
+              featureIndex !== currentOverlapIndex
+            ) {
+              featureOpacity = 0.2;
+              featureWeight = 1;
+            } else if (displayMode === "all") {
+              featureOpacity = 0.5;
+              featureWeight = 1;
+            }
+
+            if (zoomLevel < 12) {
+              featureOpacity = Math.max(0.3, featureOpacity);
+              featureWeight = Math.max(0.5, featureWeight);
+            }
+
+            return leafletCoords.map((polygonCoords, polyIndex) => (
+              <Polygon
+                key={`overlap-${
+                  properties.id || featureIndex
+                }-${subIndex}-${polyIndex}`}
+                positions={polygonCoords}
+                pathOptions={{
+                  color: landTypeColor,
+                  fillColor: landTypeColor,
+                  fillOpacity: featureOpacity,
+                  weight: featureWeight,
+                  stroke: true,
+                  lineJoin: "round",
+                }}
+              >
+                <Popup>
+                  <div style={{ minWidth: "280px" }}>
+                    <strong style={{ color: landTypeColor }}>
+                      Phân loại đất: {subGeom.ky_hieu_mdsd || "Chưa xác định"}
+                    </strong>
+                    <p>Số tờ: {properties.so_to}</p>
+                    <p>Số thửa: {properties.so_thua}</p>
+                    <p>
+                      Diện tích:{" "}
+                      {subGeom.dien_tich ? `${subGeom.dien_tich}m²` : "0m²"}
+                    </p>
+                    <p>
+                      Màu hiển thị:
+                      <span
+                        style={{
+                          display: "inline-block",
+                          width: "12px",
+                          height: "12px",
+                          backgroundColor: landTypeColor,
+                          marginLeft: "8px",
+                          border: "1px solid #333",
+                        }}
+                      ></span>
+                      {landTypeColor}
+                    </p>
+                    <p>Chủ sở hữu: {properties.owner || "Chưa có"}</p>
+                    <p>Phường/Xã: {properties.phuong_xa}</p>
+
+                    {properties.area_percentages &&
+                      properties.area_percentages[subIndex] && (
+                        <p>
+                          Tỷ lệ diện tích:{" "}
+                          {properties.area_percentages[subIndex]}%
+                        </p>
+                      )}
+                  </div>
+                </Popup>
+              </Polygon>
+            ));
+          })
+          .filter(Boolean);
       });
     }
 
-    // Render bình thường nếu không có chồng lấn
+    // Render dữ liệu không chồng lấn
     return landUseData.map((plot, index) => {
       if (!plot.geom) return null;
 
@@ -453,8 +487,6 @@ const LandUsePlanningMap = () => {
         ? plot.ky_hieu_mdsd.split("+").map((type) => type.trim())
         : [plot.ky_hieu_mdsd || "Chưa xác định"];
       const fillColor = getColorByLoaiDat(landUseTypes[0]);
-
-      // Điều chỉnh style dựa trên zoom level
       const plotStyle = getStyleByZoom();
 
       return plot.geom.map((polygonCoords, polyIndex) => (
@@ -466,10 +498,9 @@ const LandUsePlanningMap = () => {
             fillColor: fillColor,
             fillOpacity: plotStyle.opacity,
             weight: plotStyle.weight,
-            // Thêm các thuộc tính để dễ nhìn hơn
             stroke: true,
             lineJoin: "round",
-            dashArray: zoomLevel < 14 ? "3,3" : null, // Đường nét đứt khi zoom xa
+            dashArray: zoomLevel < 14 ? "3,3" : null,
           }}
         >
           <Popup>
@@ -486,7 +517,6 @@ const LandUsePlanningMap = () => {
     zoomLevel,
     isLoading,
   ]);
-
   // Hàm xử lý khi lô đất được cập nhật thành công
   const handlePlotUpdated = (updatedPlot) => {
     setLandUseData((prevData) =>
