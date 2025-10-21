@@ -294,7 +294,7 @@ const LandPlotManagement = () => {
 
   // Memoize search function
   const searchLandPlots = useCallback(
-    async (query) => {
+    async (query, retryCount = 0) => {
       if (!token) {
         setError("Vui lòng đăng nhập trước");
         return;
@@ -309,22 +309,31 @@ const LandPlotManagement = () => {
       setSearching(true);
       setError(null);
       setSuccess(null);
+      // setSearchError(null);
 
       try {
         console.log("Searching for:", query);
+
+        const params = { query };
+
+        if (phuongXa.trim()) {
+          params.phuong_xa = phuongXa;
+        }
+
         const response = await axios.get(`${API_URL}/api/land_plots/search`, {
-          headers: { Authorization: `Bearer ${token}` },
-          params: {
-            query: query,
-            phuong_xa: phuongXa,
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
           },
+          params: params,
           signal,
+          timeout: 10000, // 10 seconds timeout
         });
 
         console.log("Search Response:", response.data);
 
         if (response.data.success === false) {
-          throw new Error(response.data.message);
+          throw new Error(response.data.message || "Search failed");
         }
 
         const data = processApiResponse(response.data);
@@ -333,7 +342,25 @@ const LandPlotManagement = () => {
       } catch (error) {
         if (error.name !== "CanceledError") {
           console.error("Error fetching search:", error);
-          console.log("Fallback to client-side filtering");
+
+          // Retry logic (max 2 retries)
+          if (retryCount < 2) {
+            console.log(`Retrying search... attempt ${retryCount + 1}`);
+            setTimeout(() => {
+              searchLandPlots(query, retryCount + 1);
+            }, 1000);
+            return;
+          }
+
+          const errorMessage =
+            error.response?.data?.message ||
+            error.message ||
+            "Không thể kết nối đến server";
+
+          setError(`Lỗi tìm kiếm: ${errorMessage}`);
+
+          // Fallback: sử dụng client-side filtering với dữ liệu hiện có
+          console.log("Using client-side filtering as fallback");
         }
       } finally {
         setSearching(false);
@@ -399,28 +426,82 @@ const LandPlotManagement = () => {
   }, []);
 
   // Memoize filtered data
+  // const filteredData = useMemo(() => {
+  //   return landPlots.filter((plot) => {
+  //     const matchesPhuongXa = phuongXa === "" || plot.phuong_xa === phuongXa;
+
+  //     if (searching || debouncedSearch.trim()) {
+  //       return matchesPhuongXa;
+  //     }
+
+  //     if (!search.trim()) return matchesPhuongXa;
+
+  //     const searchLower = search.toLowerCase();
+  //     return (
+  //       matchesPhuongXa &&
+  //       ((plot.ten_chu || "").toLowerCase().includes(searchLower) ||
+  //         (plot.so_to?.toString() || "").includes(search) ||
+  //         (plot.so_thua?.toString() || "").includes(search) ||
+  //         // (plot.ky_hieu_mdsd || "").toLowerCase().includes(searchLower) ||
+  //         (plot.phuong_xa || "").toLowerCase().includes(searchLower))
+  //     );
+  //   });
+  // }, [landPlots, phuongXa, search, searching, debouncedSearch]);
+  // Memoize filtered data - UPDATED FOR land_plots ONLY
   const filteredData = useMemo(() => {
-    return landPlots.filter((plot) => {
-      const matchesPhuongXa = phuongXa === "" || plot.phuong_xa === phuongXa;
+    if (!landPlots.length) return [];
 
-      if (searching || debouncedSearch.trim()) {
-        return matchesPhuongXa;
-      }
+    let filtered = landPlots;
 
-      if (!search.trim()) return matchesPhuongXa;
-
-      const searchLower = search.toLowerCase();
-      return (
-        matchesPhuongXa &&
-        ((plot.ten_chu || "").toLowerCase().includes(searchLower) ||
-          (plot.so_to?.toString() || "").includes(search) ||
-          (plot.so_thua?.toString() || "").includes(search) ||
-          (plot.ky_hieu_mdsd || "").toLowerCase().includes(searchLower) ||
-          (plot.phuong_xa || "").toLowerCase().includes(searchLower))
+    // Filter by phuong_xa first
+    if (phuongXa) {
+      filtered = filtered.filter(
+        (plot) =>
+          plot.phuong_xa &&
+          plot.phuong_xa.toString().toLowerCase() === phuongXa.toLowerCase()
       );
-    });
-  }, [landPlots, phuongXa, search, searching, debouncedSearch]);
+    }
 
+    // Then filter by search term
+    if (search.trim()) {
+      const searchLower = search.toLowerCase().trim();
+
+      filtered = filtered.filter((plot) => {
+        // Chỉ search các field có trong bảng land_plots
+        const fieldsToCheck = [
+          plot.ten_chu,
+          plot.phuong_xa,
+          plot.so_to?.toString(),
+          plot.so_thua?.toString(),
+        ];
+
+        // Check if any field matches
+        const matchesBasic = fieldsToCheck.some(
+          (field) =>
+            field && field.toString().toLowerCase().includes(searchLower)
+        );
+
+        // Check ky_hieu_mdsd array
+        let matchesKyHieu = false;
+        if (plot.ky_hieu_mdsd) {
+          if (Array.isArray(plot.ky_hieu_mdsd)) {
+            matchesKyHieu = plot.ky_hieu_mdsd.some(
+              (item) =>
+                item && item.toString().toLowerCase().includes(searchLower)
+            );
+          } else if (typeof plot.ky_hieu_mdsd === "string") {
+            matchesKyHieu = plot.ky_hieu_mdsd
+              .toLowerCase()
+              .includes(searchLower);
+          }
+        }
+
+        return matchesBasic || matchesKyHieu;
+      });
+    }
+
+    return filtered;
+  }, [landPlots, phuongXa, search]);
   // Memoize pagination calculations
   const paginationData = useMemo(() => {
     const totalItems = filteredData.length;

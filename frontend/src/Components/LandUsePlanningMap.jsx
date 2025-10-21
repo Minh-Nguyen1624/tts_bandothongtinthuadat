@@ -4,13 +4,11 @@ import React, {
   useCallback,
   useMemo,
   useRef,
-  useDebugValue,
 } from "react";
 import {
   MapContainer,
   TileLayer,
   Polygon,
-  Marker,
   Popup,
   ZoomControl,
   AttributionControl,
@@ -20,7 +18,6 @@ import L from "leaflet";
 import axios from "axios";
 import { FaSearch, FaSpinner } from "react-icons/fa";
 import { processGeometryData } from "../utils/geometryProcessor";
-import OverLapHandler from "../Components/OverlapHandler";
 import "leaflet/dist/leaflet.css";
 import "../css/LandUsePlanningMap.css";
 
@@ -41,16 +38,15 @@ const containerStyle = {
 };
 
 // ✅ Component Loading
-const LoadingOverlay = React.memo(
-  ({ isLoading }) =>
-    isLoading && (
-      <div className="loading-overlay">
-        <div className="loading-content">
-          <FaSpinner className="spinner" />
-          <p>Đang tải dữ liệu...</p>
-        </div>
+const LoadingOverlay = React.memo(({ isLoading }) =>
+  isLoading ? (
+    <div className="loading-overlay">
+      <div className="loading-content">
+        <FaSpinner className="spinner" />
+        <p>Đang tải dữ liệu...</p>
       </div>
-    )
+    </div>
+  ) : null
 );
 
 // ✅ Component cập nhật bản đồ
@@ -81,21 +77,28 @@ const MapZoomHandler = ({ setZoomLevel }) => {
   return null;
 };
 
-// ✅ Hiển thị thông tin popup chi tiết
+// ✅ Hiển thị thông tin popup chi tiết - ĐÃ SỬA
+// ✅ Hiển thị thông tin popup chi tiết - CẬP NHẬT
 const PlotInfo = ({ plot }) => {
-  const landUseTypes = plot.ky_hieu_mdsd
-    ? plot.ky_hieu_mdsd.split("+")
-    : [plot.ky_hieu_mdsd || "Chưa xác định"];
+  const landUseTypes = plot.ky_hieu_mdsd || ["Chưa xác định"];
+
+  // Tính tổng diện tích từ land_plot_details nếu có
+  const totalAreaFromDetails =
+    plot.land_plot_details?.reduce(
+      (sum, detail) => sum + parseFloat(detail.dien_tich || 0),
+      0
+    ) || 0;
 
   return (
-    <div style={{ minWidth: "250px" }}>
+    <div style={{ minWidth: "280px" }}>
       <strong>Thông tin lô đất</strong>
       <p>Số tờ: {plot.so_to}</p>
       <p>Số thửa: {plot.so_thua}</p>
       <p>Phường/Xã: {plot.phuong_xa}</p>
 
+      {/* Hiển thị phân loại đất chính */}
       <div style={{ margin: "10px 0" }}>
-        <strong>Loại đất:</strong>
+        <strong>Loại đất chính:</strong>
         {landUseTypes.map((type, index) => (
           <div
             key={index}
@@ -110,12 +113,71 @@ const PlotInfo = ({ plot }) => {
               fontWeight: "bold",
             }}
           >
-            {type.trim()}
+            {type}
           </div>
         ))}
       </div>
 
-      <p>Diện tích: {plot.dien_tich ? `${plot.dien_tich} m²` : "Không rõ"}</p>
+      {/* Hiển thị chi tiết diện tích nếu có */}
+      {plot.land_plot_details && plot.land_plot_details.length > 0 && (
+        <div
+          style={{
+            margin: "10px 0",
+            padding: "10px",
+            background: "#f8f9fa",
+            borderRadius: "5px",
+          }}
+        >
+          <strong>Chi tiết diện tích:</strong>
+          {plot.land_plot_details.map((detail, index) => {
+            const percentage =
+              totalAreaFromDetails > 0
+                ? ((detail.dien_tich / totalAreaFromDetails) * 100).toFixed(2)
+                : "0";
+            return (
+              <div
+                key={index}
+                style={{
+                  margin: "5px 0",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center" }}>
+                  <div
+                    style={{
+                      width: "12px",
+                      height: "12px",
+                      backgroundColor:
+                        detail.color || getColorByLoaiDat(detail.ky_hieu_mdsd),
+                      marginRight: "8px",
+                      border: "1px solid #333",
+                    }}
+                  ></div>
+                  <span>{detail.ky_hieu_mdsd}:</span>
+                </div>
+                <div>
+                  <strong>
+                    {detail.dien_tich} m² ({percentage}%)
+                  </strong>
+                </div>
+              </div>
+            );
+          })}
+          <div
+            style={{
+              marginTop: "5px",
+              paddingTop: "5px",
+              borderTop: "1px solid #ddd",
+              fontWeight: "bold",
+            }}
+          >
+            Tổng diện tích: {totalAreaFromDetails || plot.dien_tich} m²
+          </div>
+        </div>
+      )}
+
       <p>Chủ sở hữu: {plot.ten_chu || "Chưa cập nhật"}</p>
     </div>
   );
@@ -126,24 +188,26 @@ const getColorByLoaiDat = (loai) => {
   if (!loai) return "#adb5bd";
 
   const colors = {
-    CAN: "#ff0000",
+    CAN: "#e03804ec", // Cập nhật theo dữ liệu API
     ONT: "#ff6b6b",
-    // ODT: "#ff8787",
     ODT: "#ff8787",
     CLN: "#69db7c",
     LUC: "#51cf66",
     BHK: "#40c057",
+    RSX: "#2f9e44",
+    RPH: "#37b24d",
+    NTS: "#20c997",
     DGT: "#4dabf7",
     HCC: "#748ffc",
     DHT: "#5c7cfa",
     TMD: "#ffa94d",
     SKC: "#fab005",
-    NTS: "#20c997",
+    SKK: "#f59f00",
+    SKN: "#e67700",
+    BCD: "#adb5bd",
+    NCD: "#868e96",
     SONG: "#339af0",
-    "ODT+CLN": "#ff922b",
-    "ONT+CLN": "#ff9e6b",
-    "ODT+ONT": "#ff6b81",
-    "ODT+ONT+CLN": "#ff9e6b",
+    KNT: "#228be6",
   };
 
   const key = loai.trim().toUpperCase();
@@ -199,16 +263,14 @@ const LandUsePlanningMap = () => {
   const token = localStorage.getItem("token");
   const searchTimeoutRef = useRef(null);
 
-  // 📡 Fetch API + xử lý geom
-  const fetchLandUseData = useCallback(
+  // 📡 Fetch API + xử lý geom - ĐÃ SỬA
+  const fetchData = useCallback(
     async (phuongXa = "", soTo = "", soThua = "") => {
       const now = Date.now();
       if (now - lastSearchTime < 1000) return;
       setLastSearchTime(now);
 
-      if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current);
-      }
+      if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
 
       try {
         if (!token) {
@@ -221,138 +283,143 @@ const LandUsePlanningMap = () => {
         setShouldUpdateView(false);
         setOverlapData(null);
 
-        const response = await axios.get(`${API_URL}/api/land_plots`, {
+        // Gọi API land_plots
+        const landResponse = await axios.get(`${API_URL}/api/land_plots`, {
           params: { phuong_xa: phuongXa, so_to: soTo, so_thua: soThua },
           headers: { Authorization: `Bearer ${token}` },
           timeout: 10000,
         });
 
-        if (response.data.success) {
-          searchTimeoutRef.current = setTimeout(() => {
-            const data = response.data.data
-              .map((plot) => {
-                const processedGeom = processGeometryData(plot.geom);
-                const leafletCoordinates = processedGeom
-                  ? convertGeoJSONToLeaflet(processedGeom)
-                  : null;
+        console.log("✅ Land API response:", landResponse.data);
 
-                return leafletCoordinates
-                  ? {
-                      ...plot,
-                      geom: leafletCoordinates,
-                      originalGeom: plot.geom,
-                    }
-                  : null;
-              })
-              .filter(Boolean);
+        if (landResponse.data.success) {
+          const data = landResponse.data.data
+            .map((plot) => {
+              const processedGeom = processGeometryData(plot.geom);
+              const leafletCoordinates = processedGeom
+                ? convertGeoJSONToLeaflet(processedGeom)
+                : null;
 
-            setLandUseData(data);
-            setSearchType(response.data.search_type || "suggest");
+              // ✅ LOG để kiểm tra dữ liệu
+              console.log(`📊 Plot ${plot.id}:`, {
+                so_to: plot.soTo,
+                so_thua: plot.soThua,
+                ky_hieu_mdsd: plot.ky_hieu_mdsd,
+                ky_hieu_mdsd_array: plot.ky_hieu_mdsd_array,
+                land_use_details: plot.land_use_details,
+              });
 
-            if (data.length > 0) {
-              const validPlot = data.find(
-                (plot) => plot.geom && plot.geom.length > 0
-              );
-              if (validPlot?.geom?.[0]?.[0]) {
-                const coords = validPlot.geom[0][0];
-                const lat =
-                  coords.reduce((sum, coord) => sum + coord[0], 0) /
-                  coords.length;
-                const lng =
-                  coords.reduce((sum, coord) => sum + coord[1], 0) /
-                  coords.length;
-                setSearchCenter([lat, lng]);
-                setMapCenter([lat, lng]);
-                setShouldUpdateView(true);
-                setZoomLevel(18);
+              return leafletCoordinates
+                ? { ...plot, geom: leafletCoordinates, originalGeom: plot.geom }
+                : null;
+            })
+            .filter(Boolean);
+
+          setLandUseData(data);
+          setSearchType(landResponse.data.search_type || "suggest");
+
+          if (data.length > 0) {
+            const validPlot = data.find(
+              (plot) => plot.geom && plot.geom.length > 0
+            );
+            if (validPlot?.geom?.[0]?.[0]) {
+              const coords = validPlot.geom[0][0];
+              const lat =
+                coords.reduce((sum, coord) => sum + coord[0], 0) /
+                coords.length;
+              const lng =
+                coords.reduce((sum, coord) => sum + coord[1], 0) /
+                coords.length;
+              setSearchCenter([lat, lng]);
+              setMapCenter([lat, lng]);
+              setShouldUpdateView(true);
+              setZoomLevel(18);
+            }
+          }
+
+          if (data.length === 0) {
+            setError("Không tìm thấy lô đất phù hợp.");
+          } else if (landResponse.data.search_type === "exact") {
+            setError(null);
+          } else {
+            setError(`Tìm thấy ${data.length} kết quả gợi ý.`);
+          }
+
+          // Gọi API overlap-group
+          try {
+            const overlapResponse = await axios.get(
+              `${API_URL}/api/land_plots/overlap-group`,
+              {
+                params: { so_to: soTo || "64", so_thua: soThua || "87" },
+                // params: { so_to: soTo, so_thua: soThua },
+                headers: { Authorization: `Bearer ${token}` },
+                timeout: 10000,
+              }
+            );
+
+            console.log(
+              "✅ Overlap API response:",
+              overlapResponse.data?.features?.sub_geometries
+            );
+
+            if (overlapResponse.data.success) {
+              overlapResponse.data.features.forEach((feature) => {
+                console.log("Check feature:", feature);
+                // setOverlapData(overlapResponse.data);
+                setOverlapData(feature);
+              });
+              if (overlapResponse.data.overlap_group?.has_overlap) {
+                setDisplayMode("alternating");
+                setCurrentOverlapIndex(0);
+              } else {
+                setDisplayMode("single");
               }
             }
-
-            if (data.length === 0) {
-              setError("Không tìm thấy lô đất phù hợp.");
-            } else if (response.data.search_type === "exact") {
-              setError(null);
-            } else {
-              setError(`Tìm thấy ${data.length} kết quả gợi ý.`);
-            }
-
-            setIsLoading(false);
-          }, 100);
-        } else {
-          setError(response.data.message || "Không tìm thấy dữ liệu.");
-          setLandUseData([]);
-          setIsLoading(false);
+          } catch (overlapError) {
+            console.log("ℹ️ Không thể lấy overlap data:", overlapError.message);
+            // Không set error vì đây không phải lỗi nghiêm trọng
+          }
         }
+
+        setIsLoading(false);
       } catch (error) {
-        console.error("Error fetching land use data:", error);
+        console.error("❌ Fetch error:", error.response?.data || error.message);
         if (error.response?.status === 401) {
           setError("Vui lòng đăng nhập để tiếp tục.");
         } else {
           setError("Lỗi khi lấy dữ liệu từ server.");
         }
         setLandUseData([]);
+        setOverlapData(null);
         setIsLoading(false);
       }
     },
     [token, lastSearchTime]
   );
 
-  // ✅ CALLBACK ĐỂ NHẬN DỮ LIỆU TỪ OVERLAPHANDLER
-  const handleOverlapData = useCallback((data) => {
-    console.log("📊 Overlap data received:", data);
-
-    // ✅ KIỂM TRA CẤU TRÚC DỮ LIỆU
-    if (data.features && data.features.length > 0) {
-      data.features.forEach((feature, index) => {
-        console.log(`Feature ${index}:`, feature);
-        if (feature.sub_geometries) {
-          feature.sub_geometries.forEach((subGeom, subIndex) => {
-            console.log(`Sub-geometry ${subIndex}:`, {
-              ky_hieu_mdsd: subGeom.ky_hieu_mdsd,
-              color: subGeom.color,
-              dien_tich: subGeom.dien_tich,
-            });
-          });
-        }
-      });
-    }
-
-    setOverlapData(data);
-
-    if (data.overlap_group?.has_overlap) {
-      setDisplayMode("alternating");
-      setCurrentOverlapIndex(0);
-    } else {
-      setDisplayMode("single");
-    }
-  }, []);
-
   const handleSearch = () => {
     if (!phuongXa && !soTo && !soThua) {
       setError("Nhập ít nhất 1 thông tin để tra cứu.");
       return;
     }
-    fetchLandUseData(phuongXa, soTo, soThua);
+    fetchData(phuongXa, soTo, soThua);
   };
 
   // Reset shouldUpdateView sau khi đã update xong
   useEffect(() => {
     if (shouldUpdateView) {
-      const timer = setTimeout(() => {
-        setShouldUpdateView(false);
-      }, 1000);
+      const timer = setTimeout(() => setShouldUpdateView(false), 1000);
       return () => clearTimeout(timer);
     }
   }, [shouldUpdateView]);
 
   useEffect(() => {
-    fetchLandUseData("Trung An", "", "");
-  }, [fetchLandUseData]);
+    fetchData("Trung An", "", "");
+  }, [fetchData]);
 
-  // ✅ Render polygons với chế độ chồng lấn
-  // Trong LandUsePlanningMap.js - phần renderedPolygons
-  // ✅ Render polygons với chế độ chồng lấn - FIXED
+  // ✅ Render polygons với chế độ chồng lấn - ĐÃ SỬA
   const renderedPolygons = useMemo(() => {
+    console.log("🔍 Rendering polygons with overlapData:", overlapData);
     if (isLoading) return null;
 
     const getStyleByZoom = (zoom) => {
@@ -367,11 +434,9 @@ const LandUsePlanningMap = () => {
         case zoomLevel >= 14:
           return { opacity: 0.7, weight: 2, dashArray: null };
         case zoomLevel >= 12:
-          return { opacity: 0.6, weight: 1.5, dashArray: null };
+          return { opacity: 0.6, weight: 1.5, dashArray: "2,2" };
         case zoomLevel >= 10:
-          return { opacity: 0.5, weight: 1, dashArray: "2,2" };
-        case zoomLevel >= 8:
-          return { opacity: 0.4, weight: 0.8, dashArray: "3,3" };
+          return { opacity: 0.5, weight: 1, dashArray: "3,3" };
         default:
           return { opacity: 0.3, weight: 0.6, dashArray: "4,4" };
       }
@@ -379,135 +444,273 @@ const LandUsePlanningMap = () => {
 
     const style = getStyleByZoom(zoomLevel);
 
-    // Xử lý dữ liệu chồng lấn
-    if (overlapData && overlapData.features && displayMode !== "single") {
-      console.log("🎨 Rendering overlap data:", overlapData);
+    // ✅ ƯU TIÊN: Render từ sub_geometries nếu có (geometry phân chia thực tế)
+    if (
+      overlapData &&
+      overlapData.sub_geometries &&
+      overlapData.sub_geometries.length > 0
+    ) {
+      console.log(
+        "🎨 Rendering from sub_geometries:",
+        overlapData.sub_geometries
+      );
 
-      return overlapData.features.flatMap((feature, featureIndex) => {
-        const properties = feature.properties || {};
-        const subGeometries = feature.sub_geometries || [];
-
-        return subGeometries
-          .map((subGeom, subIndex) => {
-            const leafletCoords = convertGeoJSONToLeaflet(subGeom.geometry);
-            if (!leafletCoords) return null;
-
-            // ✅ QUAN TRỌNG: Luôn tính màu từ ky_hieu_mdsd
-            const landTypeColor =
-              subGeom.color || getColorByLoaiDat(subGeom.ky_hieu_mdsd);
-
-            console.log(
-              `🎨 Rendering ${subGeom.ky_hieu_mdsd} with color:`,
-              landTypeColor
+      return overlapData.sub_geometries
+        .map((subGeom, index) => {
+          // Chuyển đổi geometry từ sub_geometries
+          const leafletCoords = convertGeoJSONToLeaflet(subGeom.geometry);
+          console.log("check leafletCoords: ", leafletCoords);
+          if (!leafletCoords) {
+            console.warn(
+              `⚠️ Cannot convert geometry for sub_geometry ${index}`
             );
+            return null;
+          }
 
-            let featureOpacity = style.opacity;
-            let featureWeight = style.weight;
+          const fillColor =
+            subGeom.color || getColorByLoaiDat(subGeom.ky_hieu_mdsd);
+          const percentage =
+            overlapData.properties?.total_area > 0
+              ? (subGeom.dien_tich / overlapData.properties.total_area) * 100
+              : 0;
 
-            if (
-              displayMode === "alternating" &&
-              featureIndex !== currentOverlapIndex
-            ) {
-              featureOpacity = 0.2;
-              featureWeight = 1;
-            } else if (displayMode === "all") {
-              featureOpacity = 0.5;
-              featureWeight = 1;
+          console.log(
+            `🎨 Rendering sub_geometry ${index}: ${subGeom.ky_hieu_mdsd}`,
+            {
+              color: fillColor,
+              area: subGeom.dien_tich,
+              percentage: percentage.toFixed(2) + "%",
+              coordinates: leafletCoords,
             }
+          );
 
-            if (zoomLevel < 12) {
-              featureOpacity = Math.max(0.3, featureOpacity);
-              featureWeight = Math.max(0.5, featureWeight);
-            }
-
-            return leafletCoords.map((polygonCoords, polyIndex) => (
-              <Polygon
-                key={`overlap-${
-                  properties.id || featureIndex
-                }-${subIndex}-${polyIndex}`}
-                positions={polygonCoords}
-                pathOptions={{
-                  color: landTypeColor,
-                  fillColor: landTypeColor,
-                  fillOpacity: featureOpacity,
-                  weight: featureWeight,
-                  stroke: true,
-                  lineJoin: "round",
-                }}
-              >
-                <Popup>
-                  <div style={{ minWidth: "280px" }}>
-                    <strong style={{ color: landTypeColor }}>
-                      Phân loại đất: {subGeom.ky_hieu_mdsd || "Chưa xác định"}
-                    </strong>
-                    <p>Số tờ: {properties.so_to}</p>
-                    <p>Số thửa: {properties.so_thua}</p>
-                    <p>
-                      Diện tích:{" "}
-                      {subGeom.dien_tich ? `${subGeom.dien_tich}m²` : "0m²"}
-                    </p>
-                    <p>
-                      Màu hiển thị:
+          return leafletCoords.map((polygonCoords, polyIndex) => (
+            <Polygon
+              key={`subgeom-${
+                overlapData.properties?.id || "feature"
+              }-${index}-${polyIndex}`}
+              positions={polygonCoords}
+              pathOptions={{
+                color: fillColor,
+                fillColor: fillColor,
+                fillOpacity: style.opacity,
+                weight: style.weight,
+                stroke: true,
+                lineJoin: "round",
+                dashArray: zoomLevel < 14 ? "3,3" : null,
+              }}
+            >
+              <Popup>
+                <div style={{ minWidth: "280px" }}>
+                  <strong style={{ color: fillColor }}>
+                    Phân loại đất: {subGeom.ky_hieu_mdsd}
+                  </strong>
+                  <p>Số tờ: {overlapData.properties?.so_to || "Không rõ"}</p>
+                  <p>
+                    Số thửa: {overlapData.properties?.so_thua || "Không rõ"}
+                  </p>
+                  <p>Diện tích: {subGeom.dien_tich} m²</p>
+                  <p>Tỷ lệ: {percentage.toFixed(2)}%</p>
+                  <p>
+                    Chủ sở hữu: {overlapData.properties?.owner || "Chưa có"}
+                  </p>
+                  <p>
+                    Phường/Xã: {overlapData.properties?.phuong_xa || "Không rõ"}
+                  </p>
+                  <div
+                    style={{
+                      marginTop: "10px",
+                      padding: "5px",
+                      background: "#f5f5f5",
+                      borderRadius: "3px",
+                    }}
+                  >
+                    <small>
+                      <strong>Màu sắc:</strong>
                       <span
                         style={{
                           display: "inline-block",
                           width: "12px",
                           height: "12px",
-                          backgroundColor: landTypeColor,
-                          marginLeft: "8px",
+                          backgroundColor: fillColor,
+                          margin: "0 5px",
                           border: "1px solid #333",
                         }}
                       ></span>
-                      {landTypeColor}
-                    </p>
-                    <p>Chủ sở hữu: {properties.owner || "Chưa có"}</p>
-                    <p>Phường/Xã: {properties.phuong_xa}</p>
-
-                    {properties.area_percentages &&
-                      properties.area_percentages[subIndex] && (
-                        <p>
-                          Tỷ lệ diện tích:{" "}
-                          {properties.area_percentages[subIndex]}%
-                        </p>
-                      )}
+                      {fillColor}
+                    </small>
                   </div>
-                </Popup>
-              </Polygon>
-            ));
-          })
-          .filter(Boolean);
+                </div>
+              </Popup>
+            </Polygon>
+          ));
+        })
+        .filter(Boolean);
+    }
+
+    // Render overlapping details từ features (fallback cũ)
+    if (overlapData && overlapData.features && displayMode !== "single") {
+      return overlapData.features.flatMap((feature, featureIndex) => {
+        const properties = feature.properties || {};
+        const subGeometries = feature.sub_geometries || [];
+        const { areas, colors, area_percentages } = properties;
+
+        const baseGeometry = convertGeoJSONToLeaflet(feature.geometry);
+        if (!baseGeometry) return null;
+
+        // Use areas, colors, and percentages if provided, otherwise fallback to ky_hieu_mdsd
+        const landTypes =
+          areas && colors && area_percentages
+            ? Array(areas.length)
+                .fill()
+                .map((_, i) => getLandTypeFromIndex(i))
+            : (properties.land_types &&
+                properties.land_types[0]
+                  ?.split(",")
+                  ?.map((t) => t.trim().replace("{", "").replace("}", ""))) ||
+              [];
+
+        return landTypes.map((landType, index) => {
+          const leafletCoords = baseGeometry;
+          if (!leafletCoords) return null;
+
+          const landTypeColor = colors?.[index] || getColorByLoaiDat(landType);
+          const area = areas?.[index] || 0;
+          const percentage = area_percentages?.[index] || 0;
+
+          let featureOpacity = style.opacity;
+          let featureWeight = style.weight;
+
+          if (displayMode === "alternating" && index !== currentOverlapIndex) {
+            featureOpacity = 0.2;
+            featureWeight = 1;
+          }
+
+          if (zoomLevel < 12) {
+            featureOpacity = Math.max(0.3, featureOpacity);
+            featureWeight = Math.max(0.5, featureWeight);
+          }
+
+          return leafletCoords.map((polygonCoords, polyIndex) => (
+            <Polygon
+              key={`overlap-${
+                properties.id || featureIndex
+              }-${index}-${polyIndex}`}
+              positions={polygonCoords}
+              pathOptions={{
+                color: landTypeColor,
+                fillColor: landTypeColor,
+                fillOpacity: featureOpacity,
+                weight: featureWeight,
+                stroke: true,
+                lineJoin: "round",
+              }}
+            >
+              <Popup>
+                <div style={{ minWidth: "280px" }}>
+                  <strong style={{ color: landTypeColor }}>
+                    Phân loại đất: {landType || "Chưa xác định"}
+                  </strong>
+                  <p>Số tờ: {properties.so_to || "Không rõ"}</p>
+                  <p>Số thửa: {properties.so_thua || "Không rõ"}</p>
+                  <p>Diện tích: {area ? `${area} m²` : "0 m²"}</p>
+                  <p>Tỷ lệ: {percentage}%</p>
+                  <p>Chủ sở hữu: {properties.owner || "Chưa có"}</p>
+                  <p>Phường/Xã: {properties.phuong_xa || "Không rõ"}</p>
+                </div>
+              </Popup>
+            </Polygon>
+          ));
+        });
       });
     }
 
-    // Render dữ liệu không chồng lấn
-    return landUseData.map((plot, index) => {
+    // Fallback: Render từ land_plot_details nếu có geometry riêng
+    return landUseData.map((plot, plotIndex) => {
       if (!plot.geom) return null;
 
-      const landUseTypes = plot.ky_hieu_mdsd
-        ? plot.ky_hieu_mdsd.split("+").map((type) => type.trim())
-        : [plot.ky_hieu_mdsd || "Chưa xác định"];
-      const fillColor = getColorByLoaiDat(landUseTypes[0]);
       const plotStyle = getStyleByZoom();
 
-      return plot.geom.map((polygonCoords, polyIndex) => (
-        <Polygon
-          key={`${plot.id || index}-${polyIndex}`}
-          positions={polygonCoords}
-          pathOptions={{
-            color: fillColor,
-            fillColor: fillColor,
-            fillOpacity: plotStyle.opacity,
-            weight: plotStyle.weight,
-            stroke: true,
-            lineJoin: "round",
-            dashArray: zoomLevel < 14 ? "3,3" : null,
-          }}
-        >
-          <Popup>
-            <PlotInfo plot={plot} />
-          </Popup>
-        </Polygon>
-      ));
+      // Nếu có land_plot_details với geometry riêng, render từng phần thực tế
+      if (plot.land_plot_details && plot.land_plot_details.length > 0) {
+        const hasDetailGeometry = plot.land_plot_details.some(
+          (detail) => detail.geometry
+        );
+
+        if (hasDetailGeometry) {
+          console.log(`📊 Plot ${plot.id} has land_plot_details with geometry`);
+
+          return plot.land_plot_details
+            .map((detail, detailIndex) => {
+              if (!detail.geometry) return null;
+
+              const leafletCoords = convertGeoJSONToLeaflet(detail.geometry);
+              if (!leafletCoords) return null;
+
+              const fillColor =
+                detail.color || getColorByLoaiDat(detail.ky_hieu_mdsd);
+              const percentage =
+                plot.total_area > 0
+                  ? (detail.dien_tich / plot.total_area) * 100
+                  : 0;
+
+              return leafletCoords.map((polygonCoords, polyIndex) => (
+                <Polygon
+                  key={`${plot.id}-detail-${detail.id}-${polyIndex}`}
+                  positions={polygonCoords}
+                  pathOptions={{
+                    color: fillColor,
+                    fillColor: fillColor,
+                    fillOpacity: style.opacity,
+                    weight: plotStyle.weight,
+                    stroke: true,
+                    lineJoin: "round",
+                    dashArray: zoomLevel < 14 ? "3,3" : null,
+                  }}
+                >
+                  <Popup>
+                    <PlotInfo plot={plot} detail={detail} />
+                  </Popup>
+                </Polygon>
+              ));
+            })
+            .filter(Boolean);
+        }
+      }
+
+      // Fallback cuối cùng: Render theo geom chính và ky_hieu_mdsd
+      const landUseTypes = Array.isArray(plot.ky_hieu_mdsd)
+        ? plot.ky_hieu_mdsd
+        : typeof plot.ky_hieu_mdsd === "string"
+        ? plot.ky_hieu_mdsd.split("+")
+        : ["Chưa xác định"];
+
+      return landUseTypes.map((landType, typeIndex) => {
+        const leafletCoords = plot.geom;
+        if (!leafletCoords) return null;
+
+        const fillColor = getColorByLoaiDat(landType);
+
+        return leafletCoords.map((polygonCoords, polyIndex) => (
+          <Polygon
+            key={`${plot.id}-main-${typeIndex}-${polyIndex}`}
+            positions={polygonCoords}
+            pathOptions={{
+              color: fillColor,
+              fillColor: fillColor,
+              fillOpacity: plotStyle.opacity * (1 - typeIndex * 0.1),
+              weight: plotStyle.weight,
+              stroke: true,
+              lineJoin: "round",
+              dashArray: zoomLevel < 14 ? "3,3" : null,
+            }}
+          >
+            <Popup>
+              <PlotInfo plot={plot} />
+            </Popup>
+          </Polygon>
+        ));
+      });
     });
   }, [
     landUseData,
@@ -517,6 +720,7 @@ const LandUsePlanningMap = () => {
     zoomLevel,
     isLoading,
   ]);
+
   // Hàm xử lý khi lô đất được cập nhật thành công
   const handlePlotUpdated = (updatedPlot) => {
     setLandUseData((prevData) =>
@@ -533,7 +737,6 @@ const LandUsePlanningMap = () => {
       )
     );
 
-    // Nếu bạn muốn map tự focus vào thửa đất vừa cập nhật
     if (updatedPlot.geom) {
       const processedGeom = processGeometryData(updatedPlot.geom);
       const leafletCoords = convertGeoJSONToLeaflet(processedGeom);
@@ -554,37 +757,27 @@ const LandUsePlanningMap = () => {
   // ✅ Component để điều chỉnh map behavior
   const MapBehaviorHandler = ({ setZoomLevel }) => {
     const map = useMap();
-
     useEffect(() => {
       const handleZoom = () => {
         const currentZoom = map.getZoom();
         setZoomLevel(currentZoom);
-
-        // Force re-render khi zoom thay đổi
         map.invalidateSize();
       };
-
       map.on("zoomend", handleZoom);
       map.on("moveend", handleZoom);
-
-      // Khởi tạo giá trị
       setZoomLevel(map.getZoom());
-
       return () => {
         map.off("zoomend", handleZoom);
         map.off("moveend", handleZoom);
       };
     }, [map, setZoomLevel]);
-
     return null;
   };
 
   // ✅ Cleanup timeout khi component unmount
   useEffect(() => {
     return () => {
-      if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current);
-      }
+      if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
     };
   }, []);
 
@@ -653,26 +846,6 @@ const LandUsePlanningMap = () => {
 
       <div style={containerStyle}>
         <LoadingOverlay isLoading={isLoading} />
-
-        {/* ✅ OverLapHandler Component */}
-        <div
-          style={{
-            position: "absolute",
-            top: "120px",
-            right: "15px",
-            zIndex: 1000,
-            maxWidth: "320px",
-          }}
-        >
-          <OverLapHandler
-            soTo={soTo}
-            soThua={soThua}
-            phuongXa={phuongXa}
-            onOverlapData={handleOverlapData}
-            onPlotUpdated={handlePlotUpdated}
-          />
-        </div>
-
         <MapContainer
           center={mapCenter}
           zoom={zoomLevel}
@@ -689,8 +862,7 @@ const LandUsePlanningMap = () => {
             maxZoom={22}
             minZoom={8}
             noWrap={true}
-            maxNativeZoom={19} // OpenStreetMap thường chỉ hỗ trợ đến 19
-            // noWrap={true}
+            maxNativeZoom={19}
           />
           <ZoomControl position="topright" />
           <AttributionControl position="bottomright" />

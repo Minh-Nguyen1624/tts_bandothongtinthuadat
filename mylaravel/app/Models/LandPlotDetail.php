@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
@@ -13,37 +12,27 @@ class LandPlotDetail extends Model
         'land_plot_id',
         'ky_hieu_mdsd',
         'dien_tich',
-        'geometry' // ✅ Thêm geometry vào fillable
+        'geometry',
+        'color'
     ];
 
-    /**
-     * Get the land plot that owns the detail.
-     */
     public function landPlot()
     {
         return $this->belongsTo(land_plots::class, 'land_plot_id', 'id');
     }
 
-    /**
-     * Scope to include geometry as GeoJSON
-     */
     public function scopeWithGeometry($query)
     {
         return $query->select('*')
             ->selectRaw('ST_AsGeoJSON(geometry) as geometry_geojson');
     }
 
-    /**
-     * Accessor for geometry as GeoJSON
-     */
     public function getGeometryAttribute()
     {
-        // Nếu đã có geometry_geojson từ scope
         if (isset($this->attributes['geometry_geojson']) && $this->attributes['geometry_geojson']) {
             return json_decode($this->attributes['geometry_geojson'], true);
         }
 
-        // Nếu có geometry trong database
         if (isset($this->attributes['geometry']) && $this->attributes['geometry']) {
             try {
                 $result = DB::selectOne(
@@ -59,30 +48,55 @@ class LandPlotDetail extends Model
         return null;
     }
 
-    /**
-     * Mutator for geometry - convert GeoJSON to geometry
-     */
     public function setGeometryAttribute($value)
     {
         if ($value && is_array($value)) {
             $geojson = json_encode($value);
-            $this->attributes['geometry'] = DB::raw("ST_GeomFromGeoJSON('{$geojson}')");
+            if ($geojson !== false && $geojson !== 'null') {
+                // Store the GeoJSON string temporarily and let the database handle the conversion
+                $this->attributes['geometry'] = $geojson; // This will be converted by a trigger or raw query
+            } else {
+                $this->attributes['geometry'] = null;
+            }
         } else {
             $this->attributes['geometry'] = null;
         }
     }
+    public function getColorAttribute($value)
+    {
+        return $value ?: '#868e96';
+    }
 
-    /**
-     * Get the raw geometry value from database
-     */
+    public function setColorAttribute($value)
+    {
+        $this->attributes['color'] = $value ?: $this->getDefaultColor();
+    }
+
+    protected function getDefaultColor()
+    {
+        $colors = [
+            'ONT' => '#ff6b6b', 'ODT' => '#ff8787',
+            'CLN' => '#69db7c', 'LUC' => '#51cf66',
+            'BHK' => '#40c057', 'RSX' => '#2f9e44',
+            'RPH' => '#37b24d', 'NTS' => '#20c997',
+            'DGT' => '#4dabf7', 'HCC' => '#748ffc',
+            'DHT' => '#5c7cfa', 'TMD' => '#ffa94d',
+            'SKC' => '#fab005', 'SKK' => '#f59f00',
+            'SKN' => '#e67700', 'BCD' => '#adb5bd',
+            'NCD' => '#868e96', 'SONG' => '#339af0',
+            'KNT' => '#228be6', 'CAN' => '#9d5d1962', // Updated to match provided data
+            'DGT' => '#4dabf7', 'HCC' => '#748ffc',
+            'DHT' => '#5c7cfa', 'TMD' => '#ffa94d',
+        ];
+        
+        return $colors[$this->ky_hieu_mdsd] ?? '#868e96';
+    }
+
     public function getRawGeometry()
     {
         return $this->getOriginal('geometry');
     }
 
-    /**
-     * Calculate area from geometry (in square meters)
-     */
     public function calculateAreaFromGeometry()
     {
         $rawGeometry = $this->getRawGeometry();
@@ -101,9 +115,6 @@ class LandPlotDetail extends Model
         }
     }
 
-    /**
-     * Check if geometry is valid
-     */
     public function isGeometryValid()
     {
         $rawGeometry = $this->getRawGeometry();
@@ -122,9 +133,6 @@ class LandPlotDetail extends Model
         }
     }
 
-    /**
-     * Get geometry bounds (bounding box)
-     */
     public function getGeometryBounds()
     {
         $rawGeometry = $this->getRawGeometry();
@@ -152,3 +160,4 @@ class LandPlotDetail extends Model
         }
     }
 }
+?>

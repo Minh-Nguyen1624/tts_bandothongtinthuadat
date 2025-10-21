@@ -15,7 +15,8 @@ return new class extends Migration
             $table->string('ten_chu')->nullable(); // chỉ lưu tên chủ
             $table->integer('so_to');
             $table->integer('so_thua');
-            $table->string('ky_hieu_mdsd'); // ví dụ: ODT, ONT, CLN
+            // $table->string('ky_hieu_mdsd'); // ví dụ: ODT, ONT, CLN
+            $table->json('ky_hieu_mdsd'); // ví dụ: ODT, ONT, CLN
             $table->string('phuong_xa');
             $table->enum('status', ['available', 'owned', 'suspended'])->default('available');
             // $table->geometry('geom',4326)->nullable();

@@ -5,6 +5,14 @@ import "../css/OverlapHandler.css";
 
 const API_URL = "http://127.0.0.1:8000";
 
+const debounce = (func, delay) => {
+  let timeoutId;
+  return (...args) => {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => func(...args), delay);
+  };
+};
+
 // Trong OverLapHandler.js
 const OverLapHandler = ({ soTo, soThua, phuongXa, onOverlapData }) => {
   const [overlapGroup, setOverlapGroup] = useState(null);
@@ -15,9 +23,14 @@ const OverLapHandler = ({ soTo, soThua, phuongXa, onOverlapData }) => {
   const token = localStorage.getItem("token");
   const navigate = useNavigate();
 
+  const debouncedCheckOverlap = debounce((soTo, soThua, phuongXa) => {
+    checkOverlap(soTo, soThua, phuongXa);
+  }, 500);
+
   useEffect(() => {
     if (soTo && soThua && phuongXa) {
-      checkOverlap(soTo, soThua, phuongXa);
+      // checkOverlap(soTo, soThua, phuongXa);
+      debouncedCheckOverlap(soTo, soThua, phuongXa);
     } else {
       setOverlapGroup(null);
       setError(null);

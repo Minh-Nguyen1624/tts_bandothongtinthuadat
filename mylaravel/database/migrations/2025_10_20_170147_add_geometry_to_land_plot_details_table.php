@@ -13,6 +13,7 @@ return new class extends Migration
     {
         Schema::table('land_plot_details', function (Blueprint $table) {
             $table->geometry('geometry')->nullable()->after('dien_tich');
+            $table->string('color', 20)->nullable()->after('geometry');
             $table->spatialIndex('geometry');
         });
     }
@@ -24,7 +25,7 @@ return new class extends Migration
     {
         Schema::table('land_plot_details', function (Blueprint $table) {
             $table->dropSpatialIndex(['geometry']);
-            $table->dropColumn('geometry');
+            $table->dropColumn(['geometry', 'color']);
         });
     }
 };
