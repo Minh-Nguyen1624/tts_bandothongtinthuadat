@@ -12,6 +12,8 @@ import Header from "./Components/Header.jsx";
 import LandPlotManagement from "./Components/LandPlotManagement.jsx";
 import PlotList from "./Components/PlotList.jsx";
 import LandUsePlanningMap from "./Components/LandUsePlanningMap.jsx";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 // Route bảo vệ
 const ProtectedRoute = ({ children }) => {
@@ -118,6 +120,18 @@ function App() {
           }
         />
       </Routes>
+
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="colored"
+      />
     </Router>
   );
 }

@@ -157,7 +157,8 @@ const parseEwkbSimple = (ewkbHex) => {
             Math.abs(formattedLat) <= 90 &&
             Math.abs(formattedLng) <= 180
           ) {
-            polygonCoordinates.push([formattedLat, formattedLng]);
+            // polygonCoordinates.push([formattedLat, formattedLng]);
+            polygonCoordinates.push([formattedLng, formattedLat]);
           } else {
             console.warn(
               `⚠️ Tọa độ không hợp lệ: lat=${formattedLat}, lng=${formattedLng}`
@@ -257,64 +258,197 @@ const isValidGeoJSON = (geojson) => {
 };
 
 // Hàm parse geometry chính
+// const parseGeometry = (geomData) => {
+//   if (!geomData) {
+//     console.log("❌ Không có dữ liệu geometry");
+//     return null;
+//   }
+
+//   console.log("🔍 Đang phân tích dữ liệu geometry:", typeof geomData, geomData);
+
+//   try {
+//     // Nếu là GeoJSON object (như dữ liệu bạn cung cấp)
+//     if (typeof geomData === "object" && geomData !== null) {
+//       if (isValidGeoJSON(geomData)) {
+//         const allPoints = geomData.coordinates[0]; // Lấy ring đầu tiên
+//         let sumLat = 0,
+//           sumLng = 0;
+//         let validPoints = 0;
+
+//         allPoints.forEach(([lng, lat]) => {
+//           if (!isNaN(lat) && !isNaN(lng)) {
+//             sumLat += lat;
+//             sumLng += lng;
+//             validPoints++;
+//           }
+//         });
+
+//         if (validPoints === 0) {
+//           console.log("❌ Không có điểm hợp lệ");
+//           return null;
+//         }
+
+//         const center = [sumLat / validPoints, sumLng / validPoints];
+
+//         console.log("✅ Parse GeoJSON object thành công", {
+//           center,
+//           pointsCount: validPoints,
+//           bounds: allPoints.length,
+//         });
+
+//         return {
+//           coordinates: [geomData.coordinates],
+//           bounds: allPoints,
+//           center: center,
+//         };
+//       }
+//     }
+//     // Nếu là GeoJSON string
+//     else if (typeof geomData === "string" && geomData.trim().startsWith("{")) {
+//       const parsed = JSON.parse(geomData);
+//       if (isValidGeoJSON(parsed)) {
+//         const allPoints = parsed.coordinates[0];
+//         let sumLat = 0,
+//           sumLng = 0;
+//         let validPoints = 0;
+
+//         allPoints.forEach(([lng, lat]) => {
+//           if (!isNaN(lat) && !isNaN(lng)) {
+//             sumLat += lat;
+//             sumLng += lng;
+//             validPoints++;
+//           }
+//         });
+
+//         if (validPoints === 0) return null;
+
+//         const center = [sumLat / validPoints, sumLng / validPoints];
+
+//         console.log("✅ Parse GeoJSON string thành công", {
+//           center,
+//           pointsCount: validPoints,
+//         });
+
+//         return {
+//           coordinates: [parsed.coordinates],
+//           bounds: allPoints,
+//           center: center,
+//         };
+//       }
+//     }
+//     // Nếu là WKB hex string
+//     else if (typeof geomData === "string" && geomData.startsWith("01")) {
+//       console.log("🔍 Phát hiện WKB geometry, đang phân tích...");
+//       const polygons = parseEwkbSimple(geomData);
+//       if (polygons && polygons.length > 0) {
+//         const allPoints = polygons.flat();
+//         let sumLat = 0,
+//           sumLng = 0;
+//         let validPoints = 0;
+
+//         allPoints.forEach(([lat, lng]) => {
+//           if (!isNaN(lat) && !isNaN(lng)) {
+//             sumLat += lat;
+//             sumLng += lng;
+//             validPoints++;
+//           }
+//         });
+
+//         if (validPoints === 0) return null;
+
+//         const center = [sumLat / validPoints, sumLng / validPoints];
+
+//         console.log("✅ Parse WKB geometry thành công", {
+//           center,
+//           pointsCount: validPoints,
+//         });
+
+//         return {
+//           coordinates: polygons,
+//           bounds: allPoints,
+//           center: center,
+//         };
+//       }
+//     }
+
+//     console.log("❌ Không thể parse geometry - không đúng định dạng");
+//     return null;
+//   } catch (error) {
+//     console.error("❌ Lỗi xử lý geometry:", error);
+//     return null;
+//   }
+// };
 const parseGeometry = (geomData) => {
   if (!geomData) {
     console.log("❌ Không có dữ liệu geometry");
     return null;
   }
 
-  console.log("🔍 Đang phân tích dữ liệu geometry:", typeof geomData, geomData);
+  console.log(
+    "🔍 Đang phân tích geom:",
+    typeof geomData,
+    geomData.substring(0, 50) + (geomData.length > 50 ? "..." : "")
+  );
 
   try {
-    // Nếu là GeoJSON object (như dữ liệu bạn cung cấp)
+    // GeoJSON object
     if (typeof geomData === "object" && geomData !== null) {
       if (isValidGeoJSON(geomData)) {
-        const allPoints = geomData.coordinates[0]; // Lấy ring đầu tiên
-        let sumLat = 0,
-          sumLng = 0;
+        const allPoints = geomData.coordinates[0];
+        let sumLng = 0,
+          sumLat = 0;
         let validPoints = 0;
 
         allPoints.forEach(([lng, lat]) => {
-          if (!isNaN(lat) && !isNaN(lng)) {
-            sumLat += lat;
+          if (
+            !isNaN(lat) &&
+            !isNaN(lng) &&
+            Math.abs(lat) <= 90 &&
+            Math.abs(lng) <= 180
+          ) {
             sumLng += lng;
+            sumLat += lat;
             validPoints++;
           }
         });
 
         if (validPoints === 0) {
-          console.log("❌ Không có điểm hợp lệ");
+          console.log("❌ Không có điểm hợp lệ trong GeoJSON object");
           return null;
         }
 
-        const center = [sumLat / validPoints, sumLng / validPoints];
-
-        console.log("✅ Parse GeoJSON object thành công", {
-          center,
-          pointsCount: validPoints,
-          bounds: allPoints.length,
-        });
-
+        const center = [sumLat / validPoints, sumLng / validPoints]; // [lat, lng] cho react-leaflet
         return {
-          coordinates: [geomData.coordinates],
-          bounds: allPoints,
+          coordinates: [allPoints.map(([lng, lat]) => [lat, lng])], // Chuyển [lng, lat] thành [lat, lng]
+          bounds: allPoints.map(([lng, lat]) => [lat, lng]), // Chuyển [lng, lat] thành [lat, lng]
           center: center,
         };
+      } else {
+        console.warn("⚠️ GeoJSON object không hợp lệ, thử sửa điểm đóng vòng");
+        const allPoints = geomData.coordinates[0];
+        if (
+          allPoints.length >= 3 &&
+          (allPoints[0][0] !== allPoints[allPoints.length - 1][0] ||
+            allPoints[0][1] !== allPoints[allPoints.length - 1][1])
+        ) {
+          allPoints.push([...allPoints[0]]); // Đóng vòng
+          return parseGeometry({ ...geomData, coordinates: [allPoints] });
+        }
       }
     }
-    // Nếu là GeoJSON string
+    // GeoJSON string
     else if (typeof geomData === "string" && geomData.trim().startsWith("{")) {
       const parsed = JSON.parse(geomData);
       if (isValidGeoJSON(parsed)) {
         const allPoints = parsed.coordinates[0];
-        let sumLat = 0,
-          sumLng = 0;
+        let sumLng = 0,
+          sumLat = 0;
         let validPoints = 0;
 
         allPoints.forEach(([lng, lat]) => {
           if (!isNaN(lat) && !isNaN(lng)) {
-            sumLat += lat;
             sumLng += lng;
+            sumLat += lat;
             validPoints++;
           }
         });
@@ -322,33 +456,32 @@ const parseGeometry = (geomData) => {
         if (validPoints === 0) return null;
 
         const center = [sumLat / validPoints, sumLng / validPoints];
-
-        console.log("✅ Parse GeoJSON string thành công", {
-          center,
-          pointsCount: validPoints,
-        });
-
         return {
-          coordinates: [parsed.coordinates],
-          bounds: allPoints,
+          coordinates: [allPoints.map(([lng, lat]) => [lat, lng])],
+          bounds: allPoints.map(([lng, lat]) => [lat, lng]),
           center: center,
         };
       }
     }
-    // Nếu là WKB hex string
+    // WKB hex string
     else if (typeof geomData === "string" && geomData.startsWith("01")) {
-      console.log("🔍 Phát hiện WKB geometry, đang phân tích...");
+      console.log("🔍 Phát hiện WKB, đang phân tích...");
       const polygons = parseEwkbSimple(geomData);
       if (polygons && polygons.length > 0) {
         const allPoints = polygons.flat();
-        let sumLat = 0,
-          sumLng = 0;
+        let sumLng = 0,
+          sumLat = 0;
         let validPoints = 0;
 
         allPoints.forEach(([lat, lng]) => {
-          if (!isNaN(lat) && !isNaN(lng)) {
-            sumLat += lat;
-            sumLng += lng;
+          if (
+            !isNaN(lat) &&
+            !isNaN(lng) &&
+            Math.abs(lat) <= 90 &&
+            Math.abs(lng) <= 180
+          ) {
+            sumLng += lng; // Giữ nguyên lng
+            sumLat += lat; // Giữ nguyên lat
             validPoints++;
           }
         });
@@ -356,15 +489,9 @@ const parseGeometry = (geomData) => {
         if (validPoints === 0) return null;
 
         const center = [sumLat / validPoints, sumLng / validPoints];
-
-        console.log("✅ Parse WKB geometry thành công", {
-          center,
-          pointsCount: validPoints,
-        });
-
         return {
-          coordinates: polygons,
-          bounds: allPoints,
+          coordinates: [allPoints.map(([lat, lng]) => [lat, lng])], // Giữ [lat, lng] từ WKB
+          bounds: allPoints.map(([lat, lng]) => [lat, lng]),
           center: center,
         };
       }
@@ -377,7 +504,6 @@ const parseGeometry = (geomData) => {
     return null;
   }
 };
-
 const LandPlotMap = ({ geom, plotInfo = {} }) => {
   const [geometryData, setGeometryData] = React.useState(null);
   const [mapCenter, setMapCenter] = React.useState(null);
@@ -405,14 +531,67 @@ const LandPlotMap = ({ geom, plotInfo = {} }) => {
     ];
   }, [getDefaultCenter]);
 
+  // React.useEffect(() => {
+  //   console.log("🔄 LandPlotMap useEffect triggered", {
+  //     geom: geom
+  //       ? `Type: ${typeof geom}, length: ${
+  //           typeof geom === "string" ? geom.length : "object"
+  //         }`
+  //       : "null",
+  //     plotInfo,
+  //   });
+
+  //   const processGeometry = () => {
+  //     setLoading(true);
+  //     setError(null);
+
+  //     try {
+  //       let center = null;
+  //       let parsedData = null;
+
+  //       // Ưu tiên parse geometry trước
+  //       if (geom) {
+  //         console.log("🔍 Đang phân tích dữ liệu geometry từ geom");
+  //         parsedData = parseGeometry(geom);
+  //         if (parsedData) {
+  //           setGeometryData(parsedData);
+  //           center = parsedData.center;
+  //           console.log("✅ Đã parse trung tâm từ geom:", center);
+  //         } else {
+  //           console.log("⚠️ Parse geom thất bại hoặc không có geometry hợp lệ");
+  //         }
+  //       }
+
+  //       // Nếu không có geometry hoặc parse thất bại, sử dụng trung tâm mặc định
+  //       if (!center) {
+  //         console.log("🛡️ Sử dụng trung tâm mặc định");
+  //         center = getDefaultCenter();
+  //       }
+
+  //       // LUÔN ĐẢM BẢO CÓ CENTER
+  //       setMapCenter(center);
+  //     } catch (err) {
+  //       console.error("❌ Lỗi xử lý geometry:", err);
+  //       setError("Lỗi xử lý dữ liệu bản đồ");
+  //       // LUÔN CÓ FALLBACK AN TOÀN
+  //       setMapCenter(getDefaultCenter());
+  //     } finally {
+  //       setLoading(false);
+  //     }
+  //   };
+
+  //   processGeometry();
+  // }, [geom, plotInfo, getDefaultCenter]);
+
+  // Xác định dữ liệu để hiển thị - ĐẢM BẢO LUÔN CÓ DỮ LIỆU HỢP LỆ
   React.useEffect(() => {
     console.log("🔄 LandPlotMap useEffect triggered", {
       geom: geom
-        ? `Type: ${typeof geom}, length: ${
-            typeof geom === "string" ? geom.length : "object"
-          }`
+        ? `Type: ${typeof geom}, Value: ${JSON.stringify(geom).substring(
+            0,
+            50
+          )}${geom.length > 50 ? "..." : ""}`
         : "null",
-      plotInfo,
     });
 
     const processGeometry = () => {
@@ -423,31 +602,28 @@ const LandPlotMap = ({ geom, plotInfo = {} }) => {
         let center = null;
         let parsedData = null;
 
-        // Ưu tiên parse geometry trước
         if (geom) {
-          console.log("🔍 Đang phân tích dữ liệu geometry từ geom");
+          console.log("🔍 Geom trước khi parse:", geom);
           parsedData = parseGeometry(geom);
           if (parsedData) {
             setGeometryData(parsedData);
             center = parsedData.center;
-            console.log("✅ Đã parse trung tâm từ geom:", center);
+            console.log("✅ Parsed center:", center);
+            console.log("✅ Parsed coordinates:", parsedData.coordinates);
           } else {
-            console.log("⚠️ Parse geom thất bại hoặc không có geometry hợp lệ");
+            console.warn("⚠️ Không parse được geom, dùng fallback");
           }
         }
 
-        // Nếu không có geometry hoặc parse thất bại, sử dụng trung tâm mặc định
         if (!center) {
-          console.log("🛡️ Sử dụng trung tâm mặc định");
           center = getDefaultCenter();
+          console.log("🛡️ Sử dụng trung tâm mặc định:", center);
         }
 
-        // LUÔN ĐẢM BẢO CÓ CENTER
         setMapCenter(center);
       } catch (err) {
         console.error("❌ Lỗi xử lý geometry:", err);
         setError("Lỗi xử lý dữ liệu bản đồ");
-        // LUÔN CÓ FALLBACK AN TOÀN
         setMapCenter(getDefaultCenter());
       } finally {
         setLoading(false);
@@ -455,34 +631,64 @@ const LandPlotMap = ({ geom, plotInfo = {} }) => {
     };
 
     processGeometry();
-  }, [geom, plotInfo, getDefaultCenter]);
+  }, [geom, getDefaultCenter]);
+  // const displayData = React.useMemo(() => {
+  //   const hasRealData = !!geometryData && !!geom;
 
-  // Xác định dữ liệu để hiển thị - ĐẢM BẢO LUÔN CÓ DỮ LIỆU HỢP LỆ
+  //   // ĐẢM BẢO coordinates luôn có giá trị hợp lệ
+  //   const coordinates =
+  //     hasRealData &&
+  //     geometryData.coordinates &&
+  //     Array.isArray(geometryData.coordinates) &&
+  //     geometryData.coordinates.length > 0
+  //       ? geometryData.coordinates
+  //       : [getFallbackCoordinates()];
+
+  //   // ĐẢM BẢO bounds luôn có giá trị hợp lệ
+  //   const bounds =
+  //     hasRealData &&
+  //     geometryData.bounds &&
+  //     Array.isArray(geometryData.bounds) &&
+  //     geometryData.bounds.length > 0
+  //       ? geometryData.bounds
+  //       : getFallbackCoordinates();
+
+  //   // ĐẢM BẢO center luôn có giá trị hợp lệ
+  //   const center =
+  //     mapCenter && Array.isArray(mapCenter) && mapCenter.length === 2
+  //       ? mapCenter
+  //       : getDefaultCenter();
+
+  //   return {
+  //     coordinates,
+  //     bounds,
+  //     center,
+  //     hasRealData,
+  //   };
+  // }, [geometryData, geom, mapCenter, getFallbackCoordinates, getDefaultCenter]);
+
   const displayData = React.useMemo(() => {
     const hasRealData = !!geometryData && !!geom;
 
-    // ĐẢM BẢO coordinates luôn có giá trị hợp lệ
     const coordinates =
       hasRealData &&
       geometryData.coordinates &&
       Array.isArray(geometryData.coordinates) &&
       geometryData.coordinates.length > 0
-        ? geometryData.coordinates
+        ? geometryData.coordinates // Đã là [lng, lat]
         : [getFallbackCoordinates()];
 
-    // ĐẢM BẢO bounds luôn có giá trị hợp lệ
     const bounds =
       hasRealData &&
       geometryData.bounds &&
       Array.isArray(geometryData.bounds) &&
       geometryData.bounds.length > 0
-        ? geometryData.bounds
+        ? geometryData.bounds // Đã là [lng, lat]
         : getFallbackCoordinates();
 
-    // ĐẢM BẢO center luôn có giá trị hợp lệ
     const center =
       mapCenter && Array.isArray(mapCenter) && mapCenter.length === 2
-        ? mapCenter
+        ? mapCenter // [lat, lng] cho react-leaflet
         : getDefaultCenter();
 
     return {
@@ -563,10 +769,25 @@ const LandPlotMap = ({ geom, plotInfo = {} }) => {
         />
 
         {/* Hiển thị polygon */}
-        {displayData.coordinates.map((polygonCoords, index) => (
+        {/* {displayData.coordinates.map((polygonCoords, index) => (
           <Polygon
             key={index}
             positions={polygonCoords}
+            pathOptions={{
+              color: displayData.hasRealData ? "#2563eb" : "#f59e0b",
+              fillColor: displayData.hasRealData
+                ? "rgba(37, 99, 235, 0.2)"
+                : "rgba(245, 158, 11, 0.2)",
+              fillOpacity: 0.3,
+              weight: displayData.hasRealData ? 3 : 2,
+              opacity: 0.8,
+            }}
+          />
+        ))} */}
+        {displayData.coordinates.map((polygonCoords, index) => (
+          <Polygon
+            key={index}
+            positions={polygonCoords.map((coord) => [coord[0], coord[1]])} // Đảm bảo [lat, lng]
             pathOptions={{
               color: displayData.hasRealData ? "#2563eb" : "#f59e0b",
               fillColor: displayData.hasRealData

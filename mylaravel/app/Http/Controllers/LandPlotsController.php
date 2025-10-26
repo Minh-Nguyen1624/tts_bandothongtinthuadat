@@ -15,26 +15,44 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class LandPlotsController extends Controller
 {
-
     // public function index()
     // {
     //     try {
-    //         // JOIN theo kiểu PostgreSQL (ép kiểu text để tránh lỗi operator)
     //         $landPlots = DB::table('land_plots as lp')
-    //             ->leftJoin('plot_lists as pl', function ($join) {
-    //                 $join->on(DB::raw('lp.so_to::text'), '=', DB::raw('pl.so_to::text'))
-    //                      ->on(DB::raw('lp.so_thua::text'), '=', DB::raw('pl.so_thua::text'));
-    //             })
+    //             ->leftJoin('plot_lists as pl', 'lp.plot_list_id', '=', 'pl.id')
     //             ->select(
     //                 'lp.*',
-    //                 'pl.dien_tich',
+    //                 'pl.dien_tich as plot_list_dien_tich',
     //                 'pl.organization_name',
     //                 'pl.dia_chi_thua_dat',
-    //                 DB::raw('ST_X(ST_Centroid(geom)) AS lng'),
-    //                 DB::raw('ST_Y(ST_Centroid(geom)) AS lat')
+    //                 'pl.xa',
+    //                 DB::raw('ST_X(ST_Centroid(lp.geom)) AS lng'),
+    //                 DB::raw('ST_Y(ST_Centroid(lp.geom)) AS lat')
     //             )
     //             ->orderBy('lp.id', 'desc')
     //             ->get();
+
+    //         foreach ($landPlots as $plot) {
+    //             // ✅ Parse PostgreSQL array literal
+    //             $plot->ky_hieu_mdsd = $plot->ky_hieu_mdsd 
+    //                 ? explode(',', trim($plot->ky_hieu_mdsd, '{}'))
+    //                 : [];
+
+    //             $plot->land_use_details = DB::table('land_plot_details')
+    //                 ->where('land_plot_id', $plot->id)
+    //                 ->select('ky_hieu_mdsd', 'dien_tich', 'color', 'geometry')
+    //                 ->orderBy('id', 'desc')
+    //                 ->get();
+                
+    //             // ✅ Tính diện tích tổng
+    //             if ($plot->plot_list_dien_tich) {
+    //                 $plot->dien_tich_total = floatval($plot->plot_list_dien_tich);
+    //             } elseif ($plot->land_use_details->count() > 0) {
+    //                 $plot->dien_tich_total = $plot->land_use_details->sum('dien_tich');
+    //             } else {
+    //                 $plot->dien_tich_total = $plot->dien_tich;
+    //             }
+    //         }
 
     //         return response()->json([
     //             'success' => true,
@@ -46,7 +64,7 @@ class LandPlotsController extends Controller
     //         return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
     //     }
     // }
-public function index()
+    public function index()
 {
     try {
         $landPlots = DB::table('land_plots as lp')
@@ -65,24 +83,56 @@ public function index()
 
         foreach ($landPlots as $plot) {
             // ✅ Parse PostgreSQL array literal
-            $plot->ky_hieu_mdsd = $plot->ky_hieu_mdsd 
-                ? explode(',', trim($plot->ky_hieu_mdsd, '{}'))
-                : [];
-
-            $plot->land_use_details = DB::table('land_plot_details')
-                ->where('land_plot_id', $plot->id)
-                ->select('ky_hieu_mdsd', 'dien_tich', 'color')
-                ->orderBy('id', 'desc')
-                ->get();
-            
-            // ✅ Tính diện tích tổng
-            if ($plot->plot_list_dien_tich) {
-                $plot->dien_tich_total = floatval($plot->plot_list_dien_tich);
-            } elseif ($plot->land_use_details->count() > 0) {
-                $plot->dien_tich_total = $plot->land_use_details->sum('dien_tich');
+            $kyHieuMdsd = $plot->ky_hieu_mdsd;
+            if ($kyHieuMdsd && is_string($kyHieuMdsd)) {
+                $cleaned = trim($kyHieuMdsd, '{}"');
+                $plot->ky_hieu_mdsd = $cleaned ? explode(',', $cleaned) : [];
             } else {
-                $plot->dien_tich_total = $plot->dien_tich;
+                $plot->ky_hieu_mdsd = [];
             }
+
+            // ✅ Lấy land_use_details
+            $landUseDetails = DB::table('land_plot_details')
+                ->where('land_plot_id', $plot->id)
+                ->select('id', 'ky_hieu_mdsd', 'dien_tich', 'color', 'geometry')
+                ->orderBy('id', 'asc')
+                ->get()
+                ->toArray();
+
+            $plot->land_use_details = $landUseDetails;
+            
+            // ✅ LOGIC TÍNH DIỆN TÍCH TỔNG THEO THỨ TỰ ƯU TIÊN:
+            // 1. Nếu có plot_list_dien_tich -> dùng cái này
+            // 2. Nếu có land_use_details và có diện tích -> tính tổng chi tiết
+            // 3. Nếu không có cả hai -> dùng dien_tich chung
+            // 4. Mặc định: 0
+            
+            if ($plot->plot_list_dien_tich && $plot->plot_list_dien_tich > 0) {
+                // Ưu tiên 1: Diện tích từ plot_list
+                $plot->dien_tich_total = floatval($plot->plot_list_dien_tich);
+            } elseif (!empty($plot->land_use_details)) {
+                // Ưu tiên 2: Tính tổng diện tích từ chi tiết
+                $totalDetailArea = array_sum(array_column($plot->land_use_details, 'dien_tich'));
+                if ($totalDetailArea > 0) {
+                    $plot->dien_tich_total = $totalDetailArea;
+                } else {
+                    // Nếu chi tiết có nhưng diện tích = 0, dùng dien_tich chung
+                    $plot->dien_tich_total = $plot->dien_tich ? floatval($plot->dien_tich) : 0;
+                }
+            } else {
+                // Ưu tiên 3: Dùng dien_tich chung
+                $plot->dien_tich_total = $plot->dien_tich ? floatval($plot->dien_tich) : 0;
+            }
+
+            // Đảm bảo diện tích tổng không âm
+            $plot->dien_tich_total = max(0, $plot->dien_tich_total);
+
+            // Debug log
+            Log::info("Plot {$plot->id}: " . 
+                     "plot_list_dien_tich = {$plot->plot_list_dien_tich}, " .
+                     "land_use_details_count = " . count($plot->land_use_details) . ", " .
+                     "dien_tich = {$plot->dien_tich}, " .
+                     "dien_tich_total = {$plot->dien_tich_total}");
         }
 
         return response()->json([
@@ -134,20 +184,36 @@ public function index()
                 throw new \Exception("Không tìm thấy thửa đất với số tờ {$data['so_to']} và số thửa {$data['so_thua']} trong PlotList");
             }
 
+            // if (isset($data['land_use_details']) && count($data['land_use_details']) > 0) {
+            //     $detailTypes = array_column($data['land_use_details'], 'ky_hieu_mdsd');
+            //     $mainTypes = $data['ky_hieu_mdsd'];
+                
+            //     $missingTypes = array_diff($detailTypes, $mainTypes);
+            //     if (!empty($missingTypes)) {
+            //         throw new \Exception(
+            //             "Loại đất trong chi tiết (" . implode(', ', $missingTypes) . ") không có trong loại đất chính"
+            //         );
+            //     }
+                
+            //     $totalDetailArea = array_sum(array_column($data['land_use_details'], 'dien_tich'));
+            //     $plotListArea = floatval($plotList->dien_tich);
+                
+            //     if (abs($totalDetailArea - $plotListArea) > 0.01) {
+            //         throw new \Exception(
+            //             "Tổng diện tích chi tiết ({$totalDetailArea} m²) không khớp với diện tích PlotList ({$plotListArea} m²)"
+            //         );
+            //     }
+            // }
+            // Đồng bộ ky_hieu_mdsd với land_use_details
             if (isset($data['land_use_details']) && count($data['land_use_details']) > 0) {
                 $detailTypes = array_column($data['land_use_details'], 'ky_hieu_mdsd');
                 $mainTypes = $data['ky_hieu_mdsd'];
-                
-                $missingTypes = array_diff($detailTypes, $mainTypes);
-                if (!empty($missingTypes)) {
-                    throw new \Exception(
-                        "Loại đất trong chi tiết (" . implode(', ', $missingTypes) . ") không có trong loại đất chính"
-                    );
-                }
-                
+                $allLandTypes = array_unique(array_merge($mainTypes, $detailTypes));
+                $data['ky_hieu_mdsd'] = $allLandTypes; // Cập nhật ky_hieu_mdsd trước khi kiểm tra
+
                 $totalDetailArea = array_sum(array_column($data['land_use_details'], 'dien_tich'));
                 $plotListArea = floatval($plotList->dien_tich);
-                
+
                 if (abs($totalDetailArea - $plotListArea) > 0.01) {
                     throw new \Exception(
                         "Tổng diện tích chi tiết ({$totalDetailArea} m²) không khớp với diện tích PlotList ({$plotListArea} m²)"
@@ -279,163 +345,6 @@ public function index()
             return response()->json(['success' => false, 'message' => 'Lỗi khi lấy thông tin thửa đất'], 500);
         }
     }
-
-    // public function update(Request $request, $id)
-    // {
-    //     $id = (int) $id;
-    //     $landPlot = land_plots::with('plotList')->findOrFail($id);
-
-    //     $validator = Validator::make($request->all(), [
-    //         'ten_chu'      => 'nullable|string|max:100',
-    //         'so_to'        => 'nullable|integer',
-    //         'so_thua'      => 'nullable|integer',
-    //         // 'ky_hieu_mdsd' => 'nullable|string|max:255',
-    //         'ky_hieu_mdsd' => 'nullable|array',
-    //         'ky_hieu_mdsd.*' => 'string|max:20',
-    //         'phuong_xa'    => 'nullable|string|max:100',
-    //         'ghi_chu'      => 'nullable|string|max:500',
-    //         'status'       => 'in:available,owned,suspended',
-    //         'geom'         => 'nullable|array',
-    //         'land_use_details' => 'nullable|array',
-    //         'land_use_details.*.ky_hieu_mdsd' => 'required|string|max:50',
-    //         'land_use_details.*.dien_tich' => 'required|numeric|min:0'
-    //     ]);
-
-    //     if ($validator->fails()) {
-    //         return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
-    //     }
-
-    //     try {
-    //         DB::beginTransaction();
-
-    //         $data = $validator->validated();
-
-    //         // Xử lý trạng thái
-    //         if (array_key_exists('ten_chu', $data)) {
-    //             $data['status'] = !empty(trim($data['ten_chu'] ?? '')) ? 'owned' : 'available';
-    //         }
-
-    //         // ✅ Nếu thay đổi so_to hoặc so_thua -> tìm PlotList mới
-    //         if (isset($data['so_to']) || isset($data['so_thua'])) {
-    //             $plotList = PlotList::where('so_to', $data['so_to'] ?? $landPlot->so_to)
-    //                 ->where('so_thua', $data['so_thua'] ?? $landPlot->so_thua)
-    //                 ->first();
-
-    //             if (!$plotList) {
-    //                 throw new \Exception("Không tìm thấy PlotList tương ứng");
-    //             }
-
-    //             $data['plot_list_id'] = $plotList->id;
-    //             $data['dien_tich'] = $plotList->dien_tich;
-    //         }
-
-    //         // ✅ Validate: Tổng diện tích details phải = plot_list.dien_tich
-    //         if (isset($data['land_use_details']) && count($data['land_use_details']) > 0) {
-                
-    //             $detailTypes = array_column($data['land_use_details'], 'ky_hieu_mdsd');
-    //             $mainTypes = $data['ky_hieu_mdsd'] ?? $landPlot->ky_hieu_mdsd;
-                
-    //             $missingTypes = array_diff($detailTypes, $mainTypes);
-    //             if (!empty($missingTypes)) {
-    //                 throw new \Exception(
-    //                     "Loại đất trong chi tiết (" . implode(', ', $missingTypes) . ") không có trong loại đất chính"
-    //                 );
-    //             }
-
-    //             // Validate tổng diện tích
-    //             $totalDetailArea = array_sum(array_column($data['land_use_details'], 'dien_tich'));
-    //             $plotListArea = floatval($landPlot->plotList->dien_tich ?? $data['dien_tich'] ?? 0);
-                
-    //             if (abs($totalDetailArea - $plotListArea) > 0.01) {
-    //                 throw new \Exception(
-    //                     "Tổng diện tích chi tiết ({$totalDetailArea} m²) không khớp với diện tích PlotList ({$plotListArea} m²)"
-    //                 );
-    //             }
-    //         }
-
-    //         // ✅ Xử lý ky_hieu_mdsd - convert thành JSON nếu là array
-    //         if (isset($data['ky_hieu_mdsd']) && is_array($data['ky_hieu_mdsd'])) {
-    //             $data['ky_hieu_mdsd'] = json_encode($data['ky_hieu_mdsd']);
-    //         }
-
-    //         // Xử lý GeoJSON
-    //         // if (!empty($data['geom'])) {
-    //         //     $geojsonData = $data['geom'];
-                
-    //         //     if (is_array($geojsonData) && isset($geojsonData['type'])) {
-    //         //         $geojson = json_encode($geojsonData, JSON_UNESCAPED_UNICODE);
-                    
-    //         //         DB::update("
-    //         //             UPDATE land_plots 
-    //         //             SET geom = ST_SetSRID(ST_GeomFromGeoJSON(?), 4326)
-    //         //             WHERE id = ?
-    //         //         ", [$geojson, $id]);
-    //         //     }
-                
-    //         //     unset($data['geom']);
-    //         // }
-            
-    //         $geojson = null;
-    //         if($request->has('geom') && !empty($request->input('geom'))){
-    //             $geojson = json_encode($request->input('geom'));
-    //             if($geojson === false || $geojson === 'null'){
-    //                 throw new \Exception('Invalid GeoJSON data');
-    //             }
-    //         }
-
-    //         $landPlot = new land_plots();
-    //         $landPlot->update($data);
-
-    //         if($geojson){
-    //             DB::update('UPDATE land_plots SET geom = ST_SetSRID(ST_GeomFromGeoJSON(?), 4326) WHERE id = ?');
-    //         }
-
-    //         // ✅ Cập nhật chi tiết diện tích
-    //         if (isset($data['land_use_details']) && is_array($data['land_use_details'])) {
-    //             foreach($data['land_use_details'] as $detail){
-    //                 $landPlotDetail = new LandPlotDetail();
-    //                 $landPlotDetail->land_plot_id = $landPlot->id;
-    //                 $landPlotDetail->ky_hieu_mdsd = $detail['ky_hieu_mdsd'];
-    //                 $
-    //             }
-    //             // Xóa chi tiết cũ
-    //             DB::table('land_plot_details')->where('land_plot_id', $id)->delete();
-
-    //             // Thêm chi tiết mới
-    //             foreach ($data['land_use_details'] as $detail) {
-    //                 DB::table('land_plot_details')->insert([
-    //                     'land_plot_id' => $id,
-    //                     'ky_hieu_mdsd' => $detail['ky_hieu_mdsd'],
-    //                     'dien_tich' => $detail['dien_tich'],
-    //                     'color' => $this->getColorByLandType($detail['ky_hieu_mdsd']),
-    //                     'created_at' => now(),
-    //                     'updated_at' => now()
-    //                 ]);
-    //             }
-
-    //             unset($data['land_use_details']);
-    //         }
-
-    //         // Cập nhật land_plot
-    //         $landPlot->update($data);
-            
-    //         DB::commit();
-
-    //         return response()->json([
-    //             'success' => true,
-    //             'message' => 'Land plot updated successfully',
-    //             'data'    => $landPlot->fresh(['plotList', 'landPlotDetails'])
-    //         ]);
-
-    //     } catch (\Exception $e) {
-    //         DB::rollBack();
-    //         Log::error('Land plot update error: ' . $e->getMessage());
-    //         return response()->json([
-    //             'success' => false,
-    //             'message' => $e->getMessage()
-    //         ], 500);
-    //     }
-    // }
     
     public function update(Request $request, $id)
     {
@@ -487,22 +396,38 @@ public function index()
             }
 
             // ✅ Validate: Tổng diện tích details phải = plot_list.dien_tich
-            if (isset($data['land_use_details']) && count($data['land_use_details']) > 0) {
+            // if (isset($data['land_use_details']) && count($data['land_use_details']) > 0) {
                 
+            //     $detailTypes = array_column($data['land_use_details'], 'ky_hieu_mdsd');
+            //     $mainTypes = $data['ky_hieu_mdsd'] ?? $landPlot->ky_hieu_mdsd;
+                
+            //     $missingTypes = array_diff($detailTypes, $mainTypes);
+            //     if (!empty($missingTypes)) {
+            //         throw new \Exception(
+            //             "Loại đất trong chi tiết (" . implode(', ', $missingTypes) . ") không có trong loại đất chính"
+            //         );
+            //     }
+
+            //     // Validate tổng diện tích
+            //     $totalDetailArea = array_sum(array_column($data['land_use_details'], 'dien_tich'));
+            //     $plotListArea = floatval($landPlot->plotList->dien_tich ?? $data['dien_tich'] ?? $landPlot->dien_tich);
+                
+            //     if (abs($totalDetailArea - $plotListArea) > 0.01) {
+            //         throw new \Exception(
+            //             "Tổng diện tích chi tiết ({$totalDetailArea} m²) không khớp với diện tích PlotList ({$plotListArea} m²)"
+            //         );
+            //     }
+            // }
+            // Đồng bộ ky_hieu_mdsd với land_use_details
+            if (isset($data['land_use_details']) && count($data['land_use_details']) > 0) {
                 $detailTypes = array_column($data['land_use_details'], 'ky_hieu_mdsd');
                 $mainTypes = $data['ky_hieu_mdsd'] ?? $landPlot->ky_hieu_mdsd;
-                
-                $missingTypes = array_diff($detailTypes, $mainTypes);
-                if (!empty($missingTypes)) {
-                    throw new \Exception(
-                        "Loại đất trong chi tiết (" . implode(', ', $missingTypes) . ") không có trong loại đất chính"
-                    );
-                }
+                $allLandTypes = array_unique(array_merge($mainTypes, $detailTypes));
+                $data['ky_hieu_mdsd'] = $allLandTypes; // Cập nhật ky_hieu_mdsd trước khi kiểm tra
 
-                // Validate tổng diện tích
                 $totalDetailArea = array_sum(array_column($data['land_use_details'], 'dien_tich'));
                 $plotListArea = floatval($landPlot->plotList->dien_tich ?? $data['dien_tich'] ?? $landPlot->dien_tich);
-                
+
                 if (abs($totalDetailArea - $plotListArea) > 0.01) {
                     throw new \Exception(
                         "Tổng diện tích chi tiết ({$totalDetailArea} m²) không khớp với diện tích PlotList ({$plotListArea} m²)"
@@ -644,207 +569,113 @@ public function index()
         }
     }
 
-
-    // public function search(Request $request)
-    // {
-    //     try {
-    //         $query = land_plots::query();
-
-    //         // Kiểm tra điều kiện tìm kiếm
-    //         $hasPhuongXa = $request->has('phuong_xa') && !empty($request->input('phuong_xa'));
-    //         $hasSoTo = $request->has('so_to') && !empty($request->input('so_to'));
-    //         $hasSoThua = $request->has('so_thua') && !empty($request->input('so_thua'));
-
-    //         // Áp dụng điều kiện tìm kiếm (linh hoạt)
-    //         if ($hasPhuongXa) {
-    //             $query->where('phuong_xa', 'ILIKE', "%{$request->input('phuong_xa')}%");
-    //         }
-
-    //         if ($hasSoTo) {
-    //             $query->where('so_to', $request->input('so_to'));
-    //         }
-
-    //         if ($hasSoThua) {
-    //             $query->where('so_thua', $request->input('so_thua'));
-    //         }
-
-    //         // Kiểm tra nếu không có điều kiện nào
-    //         if (!$hasPhuongXa && !$hasSoTo && !$hasSoThua) {
-    //             return response()->json([
-    //                 'success' => false,
-    //                 'message' => 'Vui lòng nhập ít nhất một thông tin: Phường/Xã, Số tờ hoặc Số thửa'
-    //             ], 400);
-    //         }
-
-    //         // Tìm kiếm chung (nếu có)
-    //         if ($request->has('query') && !empty($request->input('query'))) {
-    //             $searchTerm = $request->input('query');
-    //             $query->where(function ($q) use ($searchTerm) {
-    //                 $q->where('ten_chu', 'ILIKE', "%{$searchTerm}%")
-    //                 ->orWhere('ky_hieu_mdsd', 'ILIKE', "%{$searchTerm}%");
-    //             });
-    //         }
-
-    //         // Lấy dữ liệu với geom đã được chuyển đổi sang GeoJSON
-    //         $plots = $query->select(
-    //             '*',
-    //             \DB::raw('ST_AsGeoJSON(geom) as geom_geojson')
-    //         )->orderBy('id', 'desc')->get();
-
-    //         // Chuyển đổi geom sang JSON object
-    //         // $plots->transform(function ($plot) {
-    //         //     if ($plot->geom_geojson) {
-    //         //         $plot->geom = json_decode($plot->geom_geojson);
-    //         //     } else {
-    //         //         $plot->geom = null;
-    //         //     }
-    //         //     // Xóa trường geom_geojson tạm thời
-    //         //     unset($plot->geom_geojson);
-    //         //     return $plot;
-    //         // });
-    //         $plots->transform(function ($plot) {
-    //             if ($plot->geom_geojson) {
-    //                 $plot->geom = json_decode($plot->geom_geojson);
-    //             } else {
-    //                 $plot->geom = null;
-    //             }
-                
-    //             // Chuyển đổi ky_hieu_mdsd từ JSON string sang array
-    //             if (is_string($plot->ky_hieu_mdsd)) {
-    //                 $plot->ky_hieu_mdsd = json_decode($plot->ky_hieu_mdsd, true) ?? [];
-    //             }
-                
-    //             unset($plot->geom_geojson);
-    //             return $plot;
-    //         });
-
-    //         // Thêm thông tin về loại tìm kiếm
-    //         $searchType = ($hasPhuongXa && $hasSoTo && $hasSoThua) ? 'exact' : 'suggest';
-
-    //         return response()->json([
-    //             'success' => true,
-    //             'data' => $plots,
-    //             'total' => $plots->count(),
-    //             'search_type' => $searchType,
-    //             'message' => $searchType === 'exact' 
-    //                 ? 'Tìm kiếm chính xác' 
-    //                 : 'Tìm kiếm gợi ý - Vui lòng chọn kết quả phù hợp'
-    //         ]);
-    //     } catch (\Exception $e) {
-    //         Log::error('Search error: ' . $e->getMessage());
-    //         return response()->json([
-    //             'success' => false, 
-    //             'message' => 'Có lỗi xảy ra khi tìm kiếm'
-    //         ], 500);
-    //     }
-    // }
     public function search(Request $request)
-{
-    try {
-        $query = land_plots::query();
+    {
+        try {
+            $query = land_plots::query();
 
-        // Tìm kiếm chính (không bắt buộc tất cả)
-        $searchConditions = false;
+            // Tìm kiếm chính (không bắt buộc tất cả)
+            $searchConditions = false;
 
-        if ($request->filled('phuong_xa')) {
-            $query->where('phuong_xa', 'ILIKE', "%{$request->input('phuong_xa')}%");
-            $searchConditions = true;
-        }
+            if ($request->filled('phuong_xa')) {
+                $query->where('phuong_xa', 'ILIKE', "%{$request->input('phuong_xa')}%");
+                $searchConditions = true;
+            }
 
-        if ($request->filled('so_to')) {
-            $query->where('so_to', $request->input('so_to'));
-            $searchConditions = true;
-        }
+            if ($request->filled('so_to')) {
+                $query->where('so_to', $request->input('so_to'));
+                $searchConditions = true;
+            }
 
-        if ($request->filled('so_thua')) {
-            $query->where('so_thua', $request->input('so_thua'));
-            $searchConditions = true;
-        }
+            if ($request->filled('so_thua')) {
+                $query->where('so_thua', $request->input('so_thua'));
+                $searchConditions = true;
+            }
 
-        // Tìm kiếm chung (có thể dùng độc lập)
-        if ($request->filled('query')) {
-            $searchTerm = $request->input('query');
-            $query->where(function ($q) use ($searchTerm) {
-                $q->where('ten_chu', 'ILIKE', "%{$searchTerm}%")
-                  ->orWhere('so_thua', 'ILIKE', "%{$searchTerm}%")
-                  ->orWhere('so_to', 'ILIKE', "%{$searchTerm}%")
-                  ->orWhere('phuong_xa', 'ILIKE', "%{$searchTerm}%")
-                  ->orWhere('ky_hieu_mdsd', 'ILIKE', "%{$searchTerm}%");
-                // Xóa organization_name và dia_chi_thua_dat vì không có trong bảng land_plots
-            });
-            $searchConditions = true;
-        }
+            // Tìm kiếm chung (có thể dùng độc lập)
+            if ($request->filled('query')) {
+                $searchTerm = $request->input('query');
+                $query->where(function ($q) use ($searchTerm) {
+                    $q->where('ten_chu', 'ILIKE', "%{$searchTerm}%")
+                    ->orWhere('so_thua', 'ILIKE', "%{$searchTerm}%")
+                    ->orWhere('so_to', 'ILIKE', "%{$searchTerm}%")
+                    ->orWhere('phuong_xa', 'ILIKE', "%{$searchTerm}%")
+                    ->orWhere('ky_hieu_mdsd', 'ILIKE', "%{$searchTerm}%");
+                    // Xóa organization_name và dia_chi_thua_dat vì không có trong bảng land_plots
+                });
+                $searchConditions = true;
+            }
 
-        // Kiểm tra nếu không có điều kiện tìm kiếm nào
-        if (!$searchConditions) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Vui lòng nhập ít nhất một thông tin tìm kiếm'
-            ], 400);
-        }
+            // Kiểm tra nếu không có điều kiện tìm kiếm nào
+            if (!$searchConditions) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Vui lòng nhập ít nhất một thông tin tìm kiếm'
+                ], 400);
+            }
 
-        // Lấy dữ liệu với geom đã được chuyển đổi sang GeoJSON
-        $plots = $query->select(
-            'id',
-            'plot_list_id', 
-            'ten_chu',
-            'so_to',
-            'so_thua',
-            'ky_hieu_mdsd',
-            'phuong_xa',
-            'status',
-            'created_at',
-            'updated_at',
-            'dien_tich',
-            \DB::raw('ST_AsGeoJSON(geom) as geom_geojson')
-        )->orderBy('id', 'desc')->get();
+            // Lấy dữ liệu với geom đã được chuyển đổi sang GeoJSON
+            $plots = $query->select(
+                'id',
+                'plot_list_id', 
+                'ten_chu',
+                'so_to',
+                'so_thua',
+                'ky_hieu_mdsd',
+                'phuong_xa',
+                'status',
+                'created_at',
+                'updated_at',
+                'dien_tich',
+                \DB::raw('ST_AsGeoJSON(geom) as geom_geojson')
+            )->orderBy('id', 'desc')->get();
 
-        // Parse dữ liệu
-        $plots->transform(function ($plot) {
-            // Xử lý geom
-            if ($plot->geom_geojson) {
-                try {
-                    $plot->geom = json_decode($plot->geom_geojson);
-                } catch (\Exception $e) {
+            // Parse dữ liệu
+            $plots->transform(function ($plot) {
+                // Xử lý geom
+                if ($plot->geom_geojson) {
+                    try {
+                        $plot->geom = json_decode($plot->geom_geojson);
+                    } catch (\Exception $e) {
+                        $plot->geom = null;
+                    }
+                } else {
                     $plot->geom = null;
                 }
-            } else {
-                $plot->geom = null;
-            }
-            
-            // Chuyển đổi ky_hieu_mdsd từ PostgreSQL array literal sang array
-            if (is_string($plot->ky_hieu_mdsd)) {
-                try {
-                    $cleaned = trim($plot->ky_hieu_mdsd, '{}');
-                    $plot->ky_hieu_mdsd = !empty($cleaned) ? explode(',', $cleaned) : [];
-                } catch (\Exception $e) {
+                
+                // Chuyển đổi ky_hieu_mdsd từ PostgreSQL array literal sang array
+                if (is_string($plot->ky_hieu_mdsd)) {
+                    try {
+                        $cleaned = trim($plot->ky_hieu_mdsd, '{}');
+                        $plot->ky_hieu_mdsd = !empty($cleaned) ? explode(',', $cleaned) : [];
+                    } catch (\Exception $e) {
+                        $plot->ky_hieu_mdsd = [];
+                    }
+                } elseif ($plot->ky_hieu_mdsd === null) {
                     $plot->ky_hieu_mdsd = [];
                 }
-            } elseif ($plot->ky_hieu_mdsd === null) {
-                $plot->ky_hieu_mdsd = [];
-            }
-            
-            unset($plot->geom_geojson);
-            return $plot;
-        });
+                
+                unset($plot->geom_geojson);
+                return $plot;
+            });
 
-        return response()->json([
-            'success' => true,
-            'data' => $plots,
-            'total' => $plots->count(),
-            'message' => 'Tìm kiếm thành công'
-        ]);
-    } catch (\Exception $e) {
-        \Log::error('Search error: ' . $e->getMessage());
-        \Log::error('Search trace: ' . $e->getTraceAsString());
-        \Log::error('Search request: ' . json_encode($request->all()));
-        
-        return response()->json([
-            'success' => false, 
-            'message' => 'Có lỗi xảy ra khi tìm kiếm: ' . $e->getMessage()
-        ], 500);
+            return response()->json([
+                'success' => true,
+                'data' => $plots,
+                'total' => $plots->count(),
+                'message' => 'Tìm kiếm thành công'
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Search error: ' . $e->getMessage());
+            \Log::error('Search trace: ' . $e->getTraceAsString());
+            \Log::error('Search request: ' . json_encode($request->all()));
+            
+            return response()->json([
+                'success' => false, 
+                'message' => 'Có lỗi xảy ra khi tìm kiếm: ' . $e->getMessage()
+            ], 500);
+        }
     }
-}
     
     // Trong LandPlotsController, tạo method test mới
     public function getGeometry(Request $request)
@@ -1397,7 +1228,8 @@ public function index()
             'SKC' => '#fab005', 'SKK' => '#f59f00',
             'SKN' => '#e67700', 'BCD' => '#adb5bd',
             'NCD' => '#868e96', 'SONG' => '#339af0',
-            'KNT' => '#228be6', 'CAN' => '#9d5d1962'
+            'KNT' => '#228be6', 'CAN' => '#9d5d1962', 
+            "DPTHH" => '#868e96'
         ];
         
         return $colors[trim($landType)] ?? '#868e96';

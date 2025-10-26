@@ -200,7 +200,9 @@ const TableRow = ({
         <TableCell align="center">{landPlot.so_to || ""}</TableCell>
         <TableCell align="center">{landPlot.so_thua || ""}</TableCell>
         <TableCell align="center">
-          {landPlot.ky_hieu_mdsd || landPlot.ky_hieu_muc_dich_su_dung || ""}
+          {landPlot.ky_hieu_mdsd.toString() ||
+            landPlot.ky_hieu_muc_dich_su_dung ||
+            ""}
         </TableCell>
         <TableCell>{landPlot.phuong_xa || landPlot.dia_chi || ""}</TableCell>
         <TableCell align="center">

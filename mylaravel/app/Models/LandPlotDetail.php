@@ -87,6 +87,7 @@ class LandPlotDetail extends Model
             'KNT' => '#228be6', 'CAN' => '#9d5d1962', // Updated to match provided data
             'DGT' => '#4dabf7', 'HCC' => '#748ffc',
             'DHT' => '#5c7cfa', 'TMD' => '#ffa94d',
+            'DPTHH' => '#868e96'
         ];
         
         return $colors[$this->ky_hieu_mdsd] ?? '#868e96';

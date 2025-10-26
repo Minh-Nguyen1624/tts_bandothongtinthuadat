@@ -16,8 +16,12 @@ import LoadingOverlay from "../Components/LoadingOverlay";
 import ErrorAlert from "../Components/ErrorAlert";
 import SearchStatus from "../Components/SearchStatus";
 import { useDebounce } from "../hooks/useDebounce";
-import LandPlotAdd from "../Components/LandPlotAdd";
-import LandPlotEdit from "../Components/LandPlotEdit";
+// import LandPlotAdd from "../Components/LandPlotAdd";
+import LandPlotAdd from "../features/landPlot/LandPlotAdd";
+// import LandPlotEdit from "../Components/LandPlotEdit";
+import LandPlotEdit from "../features/landPlot/LandPlotEdit";
+import "../features/landPlot/css/LandPlotEdit.css";
+import "../features/landPlot/css/LandPlotAdd.css";
 
 const API_URL = "http://127.0.0.1:8000";
 
@@ -78,6 +82,16 @@ const LandPlotManagement = () => {
 
       const data = processApiResponse(response.data);
 
+      // Debug chi tiết về land_use_details
+      data.forEach((plot, index) => {
+        console.log(`Plot ${index} (ID: ${plot.id}):`, {
+          land_use_details: plot.land_use_details,
+          length: plot.land_use_details?.length,
+          isArray: Array.isArray(plot.land_use_details),
+          firstDetail: plot.land_use_details?.[0],
+        });
+      });
+      console.log("Fetched land plots:", data);
       setLandPlots(data);
       setLastUpdated(new Date());
       setError(null);
@@ -177,11 +191,11 @@ const LandPlotManagement = () => {
       setSuccess(null);
 
       try {
-        console.log("Adding new land plot:", formData);
-        console.log(
-          "Full formData to be sent:",
-          JSON.stringify(formData, null, 2)
-        );
+        // console.log("Adding new land plot:", formData);
+        // console.log(
+        //   "Full formData to be sent:",
+        //   JSON.stringify(formData, null, 2)
+        // );
 
         const response = await axios.post(
           `${API_URL}/api/land_plots`,
@@ -370,16 +384,74 @@ const LandPlotManagement = () => {
   );
 
   // Xử lý response API thống nhất
+  // const processApiResponse = (responseData) => {
+  //   if (Array.isArray(responseData)) {
+  //     return responseData;
+  //   } else if (responseData && Array.isArray(responseData.data)) {
+  //     return responseData.data;
+  //   } else if (responseData && responseData.data) {
+  //     return [responseData.data];
+  //   } else {
+  //     return responseData || [];
+  //   }
+  // };
+  // Xử lý response API thống nhất
   const processApiResponse = (responseData) => {
+    console.log("🔄 Processing API response...");
+
+    let data = [];
+
     if (Array.isArray(responseData)) {
-      return responseData;
+      data = responseData;
     } else if (responseData && Array.isArray(responseData.data)) {
-      return responseData.data;
+      data = responseData.data;
     } else if (responseData && responseData.data) {
-      return [responseData.data];
+      data = [responseData.data];
     } else {
-      return responseData || [];
+      data = responseData || [];
     }
+
+    // ✅ Xử lý land_use_details: Chuyển từ Collection/Object sang Array
+    const processedData = data.map((plot) => {
+      console.log(`📊 Processing plot ${plot.id}:`, {
+        land_use_details: plot.land_use_details,
+        type: typeof plot.land_use_details,
+      });
+
+      let landUseDetails = [];
+
+      if (Array.isArray(plot.land_use_details)) {
+        // Nếu đã là array
+        landUseDetails = plot.land_use_details;
+      } else if (
+        plot.land_use_details &&
+        typeof plot.land_use_details === "object"
+      ) {
+        // Nếu là Collection/Object, chuyển thành array
+        if (plot.land_use_details.data) {
+          // Laravel Collection với data property
+          landUseDetails = Array.isArray(plot.land_use_details.data)
+            ? plot.land_use_details.data
+            : Object.values(plot.land_use_details.data);
+        } else {
+          // Object thông thường, chuyển thành array
+          landUseDetails = Object.values(plot.land_use_details);
+        }
+      }
+
+      console.log(
+        `✅ Processed plot ${plot.id} land_use_details:`,
+        landUseDetails
+      );
+
+      return {
+        ...plot,
+        land_use_details: landUseDetails,
+      };
+    });
+
+    console.log("✅ Final processed data:", processedData);
+    return processedData;
   };
 
   const handleViewLocation = useCallback((plot) => {
@@ -426,28 +498,6 @@ const LandPlotManagement = () => {
   }, []);
 
   // Memoize filtered data
-  // const filteredData = useMemo(() => {
-  //   return landPlots.filter((plot) => {
-  //     const matchesPhuongXa = phuongXa === "" || plot.phuong_xa === phuongXa;
-
-  //     if (searching || debouncedSearch.trim()) {
-  //       return matchesPhuongXa;
-  //     }
-
-  //     if (!search.trim()) return matchesPhuongXa;
-
-  //     const searchLower = search.toLowerCase();
-  //     return (
-  //       matchesPhuongXa &&
-  //       ((plot.ten_chu || "").toLowerCase().includes(searchLower) ||
-  //         (plot.so_to?.toString() || "").includes(search) ||
-  //         (plot.so_thua?.toString() || "").includes(search) ||
-  //         // (plot.ky_hieu_mdsd || "").toLowerCase().includes(searchLower) ||
-  //         (plot.phuong_xa || "").toLowerCase().includes(searchLower))
-  //     );
-  //   });
-  // }, [landPlots, phuongXa, search, searching, debouncedSearch]);
-  // Memoize filtered data - UPDATED FOR land_plots ONLY
   const filteredData = useMemo(() => {
     if (!landPlots.length) return [];
 
@@ -748,6 +798,8 @@ const LandPlotManagement = () => {
         phuongXaOptions={phuongXaOptions}
         plotListOptions={plotListOptions} // Thêm dòng này
         fetchLandPlots={fetchLandPlots}
+        error={error}
+        setError={setError}
       />
 
       {/* Edit Modal */}
@@ -761,6 +813,8 @@ const LandPlotManagement = () => {
         plotData={selectedPlot}
         token={token}
         fetchLandPlot={fetchLandPlots}
+        error={error}
+        setError={setError}
       />
     </div>
   );

@@ -184,6 +184,7 @@ class land_plots extends Model
             'ONT' => '#DC143C',
             'NTS' => '#20B2AA',
             'SONG' => '#1E90FF',
+            'DPTHH' => '#868e96'
         ];
         
         return $colors[$landType] ?? '#868e96';
