@@ -20,6 +20,7 @@ import { useDebounce } from "../hooks/useDebounce";
 import LandPlotAdd from "../features/landPlot/LandPlotAdd";
 // import LandPlotEdit from "../Components/LandPlotEdit";
 import LandPlotEdit from "../features/landPlot/LandPlotEdit";
+import LandPLotDetailModal from "../Components/LandPlotDetailModal";
 import "../features/landPlot/css/LandPlotEdit.css";
 import "../features/landPlot/css/LandPlotAdd.css";
 
@@ -45,6 +46,10 @@ const LandPlotManagement = () => {
   const [exporting, setExporting] = useState(false);
   const [showMapModal, setShowMapModal] = useState(false);
   const [selectedPlotForMap, setSelectedPlotForMap] = useState(null);
+
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [landPlotDetail, setLandPlotDetail] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
 
   const token = localStorage.getItem("token");
   const abortControllerRef = useRef(null);
@@ -82,15 +87,24 @@ const LandPlotManagement = () => {
 
       const data = processApiResponse(response.data);
 
-      // Debug chi tiết về land_use_details
+      console.log("check data", data);
+
+      // Debug chi tiết về land_use_details và geometry
       data.forEach((plot, index) => {
         console.log(`Plot ${index} (ID: ${plot.id}):`, {
           land_use_details: plot.land_use_details,
           length: plot.land_use_details?.length,
           isArray: Array.isArray(plot.land_use_details),
-          firstDetail: plot.land_use_details?.[0],
+          detailsWithGeometry: plot.land_use_details?.map((detail) => ({
+            id: detail.id,
+            ky_hieu_mdsd: detail.ky_hieu_mdsd,
+            hasGeometry: !!detail.geometry,
+            geometryType: detail.geometry ? typeof detail.geometry : "null",
+            geometry: detail.geometry,
+          })),
         });
       });
+
       console.log("Fetched land plots:", data);
       setLandPlots(data);
       setLastUpdated(new Date());
@@ -104,6 +118,52 @@ const LandPlotManagement = () => {
       setLoading(false);
     }
   }, [token]);
+
+  const handleViewDetail = useCallback(
+    async (landPlot) => {
+      if (!token) {
+        setError("Vui lòng đăng nhập trước");
+        return;
+      }
+
+      setDetailLoading(true);
+      setShowDetailModal(true);
+      setLandPlotDetail(null);
+      setError(null);
+
+      try {
+        const signal = cancelPreviousRequest();
+        const response = await axios.get(
+          `${API_URL}/api/land_plots/${landPlot.id}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+            signal,
+          }
+        );
+
+        if (response.data && response.data.success === true) {
+          setLandPlotDetail(response.data.data);
+        } else {
+          throw new Error(response.data.message || "Không thể tải chi tiết");
+        }
+      } catch (error) {
+        if (error.name !== "CanceledError") {
+          console.error("Lỗi tải chi tiết thửa đất:", error);
+          setError(
+            `Không thể tải chi tiết: ${
+              error.response?.data?.message || error.message
+            }`
+          );
+        }
+      } finally {
+        setDetailLoading(false);
+      }
+    },
+    [token, cancelPreviousRequest]
+  );
 
   const fetchPlotLists = useCallback(async () => {
     if (!token) return;
@@ -744,6 +804,7 @@ const LandPlotManagement = () => {
 
       {/* Filters */}
       <LandPlotFilters
+        // formData={formData}
         search={search}
         phuongXa={phuongXa}
         perPage={perPage}
@@ -776,6 +837,7 @@ const LandPlotManagement = () => {
         onDeletePlot={handleDeletePlot}
         onViewLocation={handleViewLocation}
         fetchLandPlots={fetchLandPlots}
+        onViewDetail={handleViewDetail}
       />
 
       {/* Pagination */}
@@ -813,6 +875,15 @@ const LandPlotManagement = () => {
         plotData={selectedPlot}
         token={token}
         fetchLandPlot={fetchLandPlots}
+        error={error}
+        setError={setError}
+      />
+
+      <LandPLotDetailModal
+        show={showDetailModal}
+        onClose={() => setShowDetailModal(false)}
+        loading={detailLoading}
+        landPlotDetail={landPlotDetail}
         error={error}
         setError={setError}
       />

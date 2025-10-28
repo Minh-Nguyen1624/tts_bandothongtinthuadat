@@ -6,6 +6,7 @@ import {
   FaExpand,
 } from "react-icons/fa";
 import LandPlotMap from "../../../shared/Components/LandPlotMap";
+// import LandPlotMap from "../../../Components/LandPlotMap";
 
 const MapSection = ({
   geom,
@@ -52,7 +53,14 @@ const MapSection = ({
         </button>
       </div>
     </div>
-    <div className="map-container">
+    <div
+      className="map-container"
+      style={{
+        position: "relative",
+        height: isMapExpanded ? "700px" : "500px",
+        width: "100%",
+      }}
+    >
       <LandPlotMap geom={geom} plotInfo={plotInfo} />
     </div>
   </div>

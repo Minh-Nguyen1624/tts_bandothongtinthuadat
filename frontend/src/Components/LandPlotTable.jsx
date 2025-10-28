@@ -11,6 +11,7 @@ const LandPlotTable = ({
   onEditPlot,
   onDeletePlot,
   onViewLocation,
+  onViewDetail,
 }) => {
   const [selectedPlot, setSelectedPlot] = useState(null);
   const [showMapModal, setShowMapModal] = useState(false);
@@ -132,6 +133,7 @@ const LandPlotTable = ({
                     onDeletePlot={onDeletePlot}
                     // onViewLocation={onViewLocation}
                     onViewLocation={handleViewLocation}
+                    onViewDetail={onViewDetail}
                   />
                 ))
               )}
@@ -154,6 +156,7 @@ const TableRow = ({
   onEditPlot,
   onDeletePlot,
   onViewLocation,
+  onViewDetail,
 }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -185,6 +188,12 @@ const TableRow = ({
     setShowDeleteConfirm(false);
   };
 
+  const handleRowClick = (plot, event) => {
+    if (!event.target.closest(".action-buttons")) {
+      onViewDetail(plot);
+    }
+  };
+
   return (
     <>
       <tr
@@ -194,6 +203,7 @@ const TableRow = ({
         }}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
+        onClick={(e) => handleRowClick(landPlot, e)}
       >
         <TableCell align="center">{startIndex + index + 1}</TableCell>
         <TableCell>{landPlot.ten_chu || landPlot.name || ""}</TableCell>

@@ -46,6 +46,16 @@ const LandUseDetailRow = ({
         disabled={loading}
         rows={2}
       />
+      <label htmlFor="">Màu của thửa đất</label>
+      <input
+        type="color"
+        value={detail.color}
+        onChange={(e) =>
+          handleLandUseDetailChange(index, "color", e.target.value)
+        }
+        className="color-input"
+        disabled={loading}
+      />
       <button
         type="button"
         onClick={() => removeLandUseDetail(index)}

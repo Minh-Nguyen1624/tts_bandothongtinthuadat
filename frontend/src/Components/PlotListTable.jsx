@@ -1,15 +1,18 @@
 import React, { memo, useState, useEffect } from "react";
 import { FaEdit, FaTrash, FaBuilding, FaMap, FaRuler } from "react-icons/fa";
+// import "../css/PlotListTable.css";
 
 const PlotListTable = memo(
   ({
     data,
+    error,
     startIndex,
     loading,
     searching,
     search,
     onEditPlot,
     onDeletePlot,
+    onViewDetail,
   }) => {
     const [visibleData, setVisibleData] = useState([]);
 
@@ -17,6 +20,12 @@ const PlotListTable = memo(
     useEffect(() => {
       setVisibleData(data);
     }, [data]);
+
+    const handleRowClick = (plot, event) => {
+      if (!event.target.closest(".action-buttons")) {
+        onViewDetail(plot);
+      }
+    };
 
     if (loading && !searching) {
       return (
@@ -65,7 +74,11 @@ const PlotListTable = memo(
           </thead>
           <tbody>
             {visibleData.map((plot, index) => (
-              <tr key={`${plot.id}-${index}`} className="fade-in">
+              <tr
+                key={`${plot.id}-${index}`}
+                className="fade-in"
+                onClick={(e) => handleRowClick(plot, e)}
+              >
                 <td className="index-column">{startIndex + index + 1}</td>
                 <td>
                   <div className="organization-cell">

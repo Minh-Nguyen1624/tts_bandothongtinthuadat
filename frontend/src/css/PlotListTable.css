@@ -1,0 +1,500 @@
+/* PlotDetailModal.css - Optimized Size - No Scroll */
+:root {
+  /* Primary Color Palette - Blue Theme */
+  --primary-blue-50: #f0f9ff;
+  --primary-blue-100: #e0f2fe;
+  --primary-blue-200: #bae6fd;
+  --primary-blue-300: #7dd3fc;
+  --primary-blue-400: #38bdf8;
+  --primary-blue-500: #0ea5e9;
+  --primary-blue-600: #0284c7;
+  --primary-blue-700: #0369a1;
+  --primary-blue-800: #075985;
+  --primary-blue-900: #0c4a6e;
+
+  /* White Gray Content Background */
+  --content-bg-50: #ffffff;
+  --content-bg-100: #fcfdfe;
+  --content-bg-200: #fafbfc;
+  --content-bg-300: #f7f9fa;
+  --content-bg-400: #f5f7f9;
+  --content-bg-500: #f2f4f6;
+
+  /* Text Colors */
+  --text-primary: #1a1a1a;
+  --text-secondary: #2d3748;
+  --text-tertiary: #4a5568;
+  --text-muted: #718096;
+  --text-white: #ffffff;
+
+  /* Border Colors */
+  --border-light: #e2e8f0;
+  --border-medium: #cbd5e0;
+  --border-dark: #a0aec0;
+
+  /* Shadow Colors */
+  --shadow-light: rgba(14, 165, 233, 0.05);
+  --shadow-medium: rgba(14, 165, 233, 0.08);
+  --shadow-dark: rgba(14, 165, 233, 0.12);
+
+  /* Spacing - Reduced for compact layout */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+
+  /* Border Radius */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+
+  /* Typography - Optimized sizes */
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-base: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.25rem;
+  --font-size-2xl: 1.5rem;
+
+  /* Font Weights */
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  /* Line Heights */
+  --line-height-tight: 1.25;
+  --line-height-normal: 1.5;
+
+  /* Transitions */
+  --transition-fast: 150ms;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 var(--shadow-light);
+  --shadow-md: 0 4px 6px -1px var(--shadow-medium),
+    0 2px 4px -1px var(--shadow-light);
+}
+
+/* Modal Overlay - No padding to maximize space */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1050;
+  padding: var(--space-4);
+  backdrop-filter: blur(4px);
+  animation: overlayFadeIn var(--transition-fast) ease-out;
+}
+
+@keyframes overlayFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Modal Content - Compact size, no scroll */
+.modal-content {
+  background: var(--content-bg-50);
+  border-radius: var(--radius-xl);
+  width: 90%;
+  max-width: 500px; /* Reduced max-width for compact layout */
+  max-height: 85vh; /* Still allow some space but prevent scroll */
+  overflow: hidden; /* Changed from auto to hidden */
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--primary-blue-200);
+  animation: modalSlideIn var(--transition-fast) ease-out;
+}
+
+.plot-detail-modal {
+  display: flex;
+  flex-direction: column;
+  height: auto; /* Let content determine height */
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Modal Header - Compact */
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-4) var(--space-6);
+  background: var(--primary-blue-50);
+  border-bottom: 1px solid var(--primary-blue-200);
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  flex-shrink: 0;
+}
+
+.modal-header h2 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-tight);
+}
+
+/* Close Button - Smaller */
+.close-button {
+  background: var(--content-bg-50);
+  border: 1px solid var(--primary-blue-300);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-base);
+  cursor: pointer;
+  color: var(--primary-blue-600);
+  padding: var(--space-2);
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast) ease;
+  box-shadow: var(--shadow-sm);
+  flex-shrink: 0;
+}
+
+.close-button:hover {
+  background: var(--primary-blue-500);
+  color: var(--text-white);
+  border-color: var(--primary-blue-500);
+}
+
+/* Detail Content - Compact padding */
+.detail-content {
+  padding: var(--space-6);
+  background: var(--content-bg-50);
+  flex: 1;
+  overflow: hidden; /* Prevent internal scrolling */
+}
+
+.detail-section {
+  margin-bottom: var(--space-6);
+}
+
+.detail-section:last-child {
+  margin-bottom: 0;
+}
+
+.detail-section h3 {
+  margin: 0 0 var(--space-4) 0;
+  color: var(--text-primary);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-tight);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--primary-blue-200);
+}
+
+/* Detail Grid - Compact layout */
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr); /* Fixed 2 columns for consistency */
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.detail-grid:last-child {
+  margin-bottom: 0;
+}
+
+/* Detail Item - Compact size */
+.detail-item {
+  padding: var(--space-3);
+  background: var(--content-bg-100);
+  border-radius: var(--radius-lg);
+  border-left: 3px solid var(--primary-blue-400);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-light);
+  min-height: 60px; /* Reduced minimum height */
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.detail-item.full-width {
+  grid-column: 1 / -1;
+  min-height: 50px; /* Even smaller for full-width items */
+}
+
+.detail-item-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.detail-item-header svg {
+  color: var(--primary-blue-500);
+  font-size: var(--font-size-base);
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+}
+
+.detail-label {
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  line-height: var(--line-height-tight);
+}
+
+.detail-value {
+  font-size: var(--font-size-sm);
+  color: var(--text-primary);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-normal);
+  word-break: break-word;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Special styling for area value */
+.detail-item:has(.fa-ruler) .detail-value {
+  color: var(--primary-blue-600);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* Loading State - Compact */
+.detail-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-10) var(--space-6);
+  color: var(--text-tertiary);
+  min-height: 200px;
+  background: var(--content-bg-50);
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 2px solid var(--primary-blue-100);
+  border-top: 2px solid var(--primary-blue-500);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: var(--space-4);
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.detail-loading span {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-secondary);
+}
+
+/* No Data State - Compact */
+.no-data {
+  text-align: center;
+  padding: var(--space-8) var(--space-6);
+  color: var(--text-tertiary);
+  background: var(--content-bg-50);
+  border-radius: 0 0 var(--radius-xl) var(--radius-xl);
+  min-height: 150px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.no-data-icon {
+  font-size: 2rem;
+  margin-bottom: var(--space-4);
+  opacity: 0.7;
+}
+
+.no-data p {
+  margin-bottom: var(--space-4);
+  font-size: var(--font-size-base);
+  color: var(--text-secondary);
+  font-weight: var(--font-weight-medium);
+}
+
+.retry-btn {
+  background: var(--primary-blue-500);
+  color: var(--text-white);
+  border: none;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-sm);
+  transition: all var(--transition-fast) ease;
+  box-shadow: var(--shadow-sm);
+}
+
+.retry-btn:hover {
+  background: var(--primary-blue-600);
+}
+
+/* Responsive Design - Ensure no scroll on all devices */
+@media (max-width: 768px) {
+  .modal-overlay {
+    padding: var(--space-2);
+  }
+
+  .modal-content {
+    max-width: 95%;
+    border-radius: var(--radius-lg);
+  }
+
+  .modal-header {
+    padding: var(--space-3) var(--space-4);
+  }
+
+  .modal-header h2 {
+    font-size: var(--font-size-lg);
+  }
+
+  .detail-content {
+    padding: var(--space-4);
+  }
+
+  .detail-grid {
+    grid-template-columns: 1fr; /* Single column on mobile */
+    gap: var(--space-3);
+  }
+
+  .detail-item {
+    padding: var(--space-3);
+    min-height: 55px;
+  }
+
+  .close-button {
+    width: 32px;
+    height: 32px;
+    padding: var(--space-1);
+  }
+
+  .detail-section h3 {
+    font-size: var(--font-size-base);
+    margin-bottom: var(--space-3);
+  }
+}
+
+@media (max-width: 480px) {
+  .modal-header {
+    padding: var(--space-3);
+  }
+
+  .detail-content {
+    padding: var(--space-3);
+  }
+
+  .detail-section {
+    margin-bottom: var(--space-4);
+  }
+
+  .no-data {
+    padding: var(--space-6) var(--space-3);
+  }
+
+  .no-data-icon {
+    font-size: 1.75rem;
+  }
+
+  .detail-item-header {
+    gap: var(--space-1);
+  }
+
+  .detail-label {
+    font-size: 0.7rem;
+  }
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  .modal-overlay,
+  .modal-content,
+  .detail-item,
+  .close-button,
+  .retry-btn,
+  .loading-spinner {
+    animation: none;
+    transition: none;
+  }
+}
+
+/* Ensure no vertical scroll */
+.modal-content {
+  overflow-y: hidden !important;
+}
+
+.detail-content {
+  overflow-y: hidden !important;
+}
+
+/* Calculate optimal height to prevent scrolling */
+@media (max-height: 700px) {
+  .modal-content {
+    max-height: 95vh;
+  }
+
+  .detail-grid {
+    gap: var(--space-3);
+  }
+
+  .detail-item {
+    padding: var(--space-2);
+    min-height: 50px;
+  }
+
+  .detail-content {
+    padding: var(--space-4);
+  }
+}
+
+@media (max-height: 600px) {
+  .modal-content {
+    max-height: 98vh;
+  }
+
+  .detail-section {
+    margin-bottom: var(--space-3);
+  }
+
+  .detail-section h3 {
+    margin-bottom: var(--space-2);
+    font-size: var(--font-size-base);
+  }
+
+  .detail-item {
+    min-height: 45px;
+  }
+
+  .detail-value {
+    font-size: var(--font-size-xs);
+  }
+}

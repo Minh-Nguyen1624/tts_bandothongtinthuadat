@@ -23,6 +23,7 @@ import ErrorAlert from "../Components/ErrorAlert";
 import SearchStatus from "../Components/SearchStatus";
 import { useDebounce } from "../hooks/useDebounce";
 import PlotModal from "../Components/PlotModal";
+import PlotDetailModal from "../Components/PlotDetailModal";
 
 const API_URL = "http://127.0.0.1:8000/api";
 
@@ -45,6 +46,10 @@ const PlotList = () => {
   const [modalLoading, setModalLoading] = useState(false);
   const [selectedPlot, setSelectedPlot] = useState(null);
   const [exporting, setExporting] = useState(false);
+
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [plotDetail, setPlotDetail] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
 
   const token = localStorage.getItem("token");
   const abortControllerRef = useRef(null);
@@ -120,6 +125,55 @@ const PlotList = () => {
     }
   }, [token, search, xa]);
 
+  const handleViewDetail = useCallback(
+    async (plot) => {
+      if (!token) {
+        setError("Vui lòng đăng nhập trước");
+        return;
+      }
+
+      if (!plot?.id) {
+        setError("Không có ID thửa đất");
+        return;
+      }
+
+      setDetailLoading(true);
+      setShowDetailModal(true);
+      setPlotDetail(null); // Reset trước khi load
+      setError(null);
+
+      try {
+        const signal = cancelPreviousRequest();
+        const response = await axios.get(`${API_URL}/plotlists/${plot.id}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          signal,
+        });
+
+        // Kiểm tra response
+        if (response.data && response.data.success === true) {
+          setPlotDetail(response.data.data || response.data);
+        } else {
+          throw new Error(response.data?.message || "Dữ liệu không hợp lệ");
+        }
+      } catch (error) {
+        if (error.name !== "CanceledError") {
+          console.error("Lỗi tải chi tiết thửa đất:", error);
+          setError(
+            `Không thể tải chi tiết: ${
+              error.response?.data?.message || error.message
+            }`
+          );
+          setPlotDetail(plot); // Fallback: dùng dữ liệu bảng
+        }
+      } finally {
+        setDetailLoading(false); // ← SỬA: dùng detailLoading
+      }
+    },
+    [token, cancelPreviousRequest]
+  );
   // Fetch all plots với caching
   const fetchPlots = useCallback(
     async (forceRefresh = false) => {
@@ -155,6 +209,41 @@ const PlotList = () => {
     },
     [token, cancelPreviousRequest]
   );
+
+  // const fetchPlotDetail = useCallback(async () => {
+  //   if (!token) {
+  //     setError("Vui lòng đăng nhập trước");
+  //     return;
+  //   }
+
+  //   const signal = cancelPreviousRequest();
+  //   setLoading(true);
+  //   setError(null);
+  //   setSuccess(null);
+
+  //   try {
+  //     const response = await axios.get(
+  //       `${API_URL}/plotlists/${selectedPlot.id}`,
+  //       {
+  //         headers: { Authorization: `Bearer ${token}` },
+  //         signal,
+  //       }
+  //     );
+
+  //     const data = processApiResponse(response.data);
+
+  //     setPlots(data);
+  //     setLastUpdated(new Date());
+  //     setError(null);
+  //   } catch (error) {
+  //     if (error.name !== "CanceledError") {
+  //       console.error("Error fetching plots:", error);
+  //       setError(`Lỗi: ${error.response?.data?.message || error.message}`);
+  //     }
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // }, [token, cancelPreviousRequest, selectedPlot]);
 
   // Search plots với caching
   const searchPlots = useCallback(
@@ -611,6 +700,8 @@ const PlotList = () => {
         search={search}
         onEditPlot={handleOpenModal}
         onDeletePlot={deletePlot}
+        // fetchPlotDetail={fetchPlotDetail}
+        onViewDetail={handleViewDetail}
       />
 
       {/* Pagination */}
@@ -634,6 +725,14 @@ const PlotList = () => {
         loading={modalLoading}
         plotData={selectedPlot}
         xaOptions={xaOptions}
+      />
+
+      <PlotDetailModal
+        show={showDetailModal}
+        onClose={() => setShowDetailModal(false)}
+        plotData={plotDetail}
+        loading={detailLoading}
+        error={error}
       />
 
       {/* Debug info */}

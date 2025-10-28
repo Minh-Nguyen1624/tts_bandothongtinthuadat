@@ -34,24 +34,98 @@ class LandPlotsController extends Controller
 
     //         foreach ($landPlots as $plot) {
     //             // ✅ Parse PostgreSQL array literal
-    //             $plot->ky_hieu_mdsd = $plot->ky_hieu_mdsd 
-    //                 ? explode(',', trim($plot->ky_hieu_mdsd, '{}'))
-    //                 : [];
-
-    //             $plot->land_use_details = DB::table('land_plot_details')
-    //                 ->where('land_plot_id', $plot->id)
-    //                 ->select('ky_hieu_mdsd', 'dien_tich', 'color', 'geometry')
-    //                 ->orderBy('id', 'desc')
-    //                 ->get();
-                
-    //             // ✅ Tính diện tích tổng
-    //             if ($plot->plot_list_dien_tich) {
-    //                 $plot->dien_tich_total = floatval($plot->plot_list_dien_tich);
-    //             } elseif ($plot->land_use_details->count() > 0) {
-    //                 $plot->dien_tich_total = $plot->land_use_details->sum('dien_tich');
+    //             $kyHieuMdsd = $plot->ky_hieu_mdsd;
+    //             if ($kyHieuMdsd && is_string($kyHieuMdsd)) {
+    //                 $cleaned = trim($kyHieuMdsd, '{}"');
+    //                 $plot->ky_hieu_mdsd = $cleaned ? explode(',', $cleaned) : [];
     //             } else {
-    //                 $plot->dien_tich_total = $plot->dien_tich;
+    //                 $plot->ky_hieu_mdsd = [];
     //             }
+
+    //             // ✅ Lấy land_use_details
+    //             $landUseDetails = DB::table('land_plot_details')
+    //                 ->where('land_plot_id', $plot->id)
+    //                 ->select('id', 
+    //                 'ky_hieu_mdsd', 
+    //                 'dien_tich', 
+    //                 'color', 
+    //                 // 'geometry'
+    //                 // DB::raw(('ST_AsGeoJSON(geometry) as geometry'))
+    //                 DB::raw('CASE
+    //                     WHEN geometry IS NULL THEN NULL
+    //                     ELSE ST_AsGeoJSON(geometry)
+    //                 END AS geometry')
+    //                 )
+    //                 ->orderBy('id', 'asc')
+    //                 ->get()
+    //                 ->map(function ($detail) {
+    //                 // Chuyển đổi geometry từ GeoJSON string sang object
+    //                     if ($detail->geometry && is_string($detail->geometry)) {
+    //                         try {
+    //                             $parsedGeometry = json_decode($detail->geometry);
+    //                             if (json_last_error() === JSON_ERROR_NONE) {
+    //                                 $detail->geometry = $parsedGeometry;
+    //                             } else {
+    //                                 $detail->geometry = null;
+    //                             }
+    //                         } catch (\Exception $e) {
+    //                             Log::warning("Failed to parse geometry JSON for detail {$detail->id}: " . $e->getMessage());
+    //                             $detail->geometry = null;
+    //                         }
+    //                     } else {
+    //                         $detail->geometry = null;
+    //                     }
+    //                     return $detail;
+    //                 })
+    //                 ->toArray();
+
+    //             $plot->land_use_details = $landUseDetails;
+                
+    //             if(!empty($landUseDetails)){
+    //                 Log::info("Plot {$plot->id} land_use_details geometry:", [
+    //                     'count' => count($landUseDetails),
+    //                     'geometries' => array_map(function($detail) {
+    //                         return [
+    //                             'id' => $detail->id,
+    //                             'has_geometry' => !empty($detail->geometry),
+    //                             'geometry_type' => $detail->geometry ? gettype($detail->geometry) : 'null'
+    //                         ];
+    //                     }, $landUseDetails)
+    //                 ]);
+    //             }
+
+    //             // ✅ LOGIC TÍNH DIỆN TÍCH TỔNG THEO THỨ TỰ ƯU TIÊN:
+    //             // 1. Nếu có plot_list_dien_tich -> dùng cái này
+    //             // 2. Nếu có land_use_details và có diện tích -> tính tổng chi tiết
+    //             // 3. Nếu không có cả hai -> dùng dien_tich chung
+    //             // 4. Mặc định: 0
+                
+    //             if ($plot->plot_list_dien_tich && $plot->plot_list_dien_tich > 0) {
+    //                 // Ưu tiên 1: Diện tích từ plot_list
+    //                 $plot->dien_tich_total = floatval($plot->plot_list_dien_tich);
+    //             } elseif (!empty($plot->land_use_details)) {
+    //                 // Ưu tiên 2: Tính tổng diện tích từ chi tiết
+    //                 $totalDetailArea = array_sum(array_column($plot->land_use_details, 'dien_tich'));
+    //                 if ($totalDetailArea > 0) {
+    //                     $plot->dien_tich_total = $totalDetailArea;
+    //                 } else {
+    //                     // Nếu chi tiết có nhưng diện tích = 0, dùng dien_tich chung
+    //                     $plot->dien_tich_total = $plot->dien_tich ? floatval($plot->dien_tich) : 0;
+    //                 }
+    //             } else {
+    //                 // Ưu tiên 3: Dùng dien_tich chung
+    //                 $plot->dien_tich_total = $plot->dien_tich ? floatval($plot->dien_tich) : 0;
+    //             }
+
+    //             // Đảm bảo diện tích tổng không âm
+    //             $plot->dien_tich_total = max(0, $plot->dien_tich_total);
+
+    //             // Debug log
+    //             Log::info("Plot {$plot->id}: " . 
+    //                     "plot_list_dien_tich = {$plot->plot_list_dien_tich}, " .
+    //                     "land_use_details_count = " . count($plot->land_use_details) . ", " .
+    //                     "dien_tich = {$plot->dien_tich}, " .
+    //                     "dien_tich_total = {$plot->dien_tich_total}");
     //         }
 
     //         return response()->json([
@@ -65,86 +139,123 @@ class LandPlotsController extends Controller
     //     }
     // }
     public function index()
-{
-    try {
-        $landPlots = DB::table('land_plots as lp')
-            ->leftJoin('plot_lists as pl', 'lp.plot_list_id', '=', 'pl.id')
-            ->select(
-                'lp.*',
-                'pl.dien_tich as plot_list_dien_tich',
-                'pl.organization_name',
-                'pl.dia_chi_thua_dat',
-                'pl.xa',
-                DB::raw('ST_X(ST_Centroid(lp.geom)) AS lng'),
-                DB::raw('ST_Y(ST_Centroid(lp.geom)) AS lat')
-            )
-            ->orderBy('lp.id', 'desc')
-            ->get();
+    {
+        try {
+            Log::info("=== START LAND PLOTS INDEX ===");
 
-        foreach ($landPlots as $plot) {
-            // ✅ Parse PostgreSQL array literal
-            $kyHieuMdsd = $plot->ky_hieu_mdsd;
-            if ($kyHieuMdsd && is_string($kyHieuMdsd)) {
-                $cleaned = trim($kyHieuMdsd, '{}"');
-                $plot->ky_hieu_mdsd = $cleaned ? explode(',', $cleaned) : [];
-            } else {
-                $plot->ky_hieu_mdsd = [];
-            }
+            $landPlots = DB::table('land_plots as lp')
+                ->leftJoin('plot_lists as pl', 'lp.plot_list_id', '=', 'pl.id')
+                ->select(
+                    'lp.*',
+                    'pl.dien_tich as plot_list_dien_tich',
+                    'pl.organization_name',
+                    'pl.dia_chi_thua_dat',
+                    'pl.xa',
+                    DB::raw('ST_X(ST_Centroid(lp.geom)) AS lng'),
+                    DB::raw('ST_Y(ST_Centroid(lp.geom)) AS lat')
+                )
+                ->orderBy('lp.id', 'desc')
+                ->get();
 
-            // ✅ Lấy land_use_details
-            $landUseDetails = DB::table('land_plot_details')
-                ->where('land_plot_id', $plot->id)
-                ->select('id', 'ky_hieu_mdsd', 'dien_tich', 'color', 'geometry')
-                ->orderBy('id', 'asc')
-                ->get()
-                ->toArray();
+            Log::info("Total land plots found: " . $landPlots->count());
 
-            $plot->land_use_details = $landUseDetails;
-            
-            // ✅ LOGIC TÍNH DIỆN TÍCH TỔNG THEO THỨ TỰ ƯU TIÊN:
-            // 1. Nếu có plot_list_dien_tich -> dùng cái này
-            // 2. Nếu có land_use_details và có diện tích -> tính tổng chi tiết
-            // 3. Nếu không có cả hai -> dùng dien_tich chung
-            // 4. Mặc định: 0
-            
-            if ($plot->plot_list_dien_tich && $plot->plot_list_dien_tich > 0) {
-                // Ưu tiên 1: Diện tích từ plot_list
-                $plot->dien_tich_total = floatval($plot->plot_list_dien_tich);
-            } elseif (!empty($plot->land_use_details)) {
-                // Ưu tiên 2: Tính tổng diện tích từ chi tiết
-                $totalDetailArea = array_sum(array_column($plot->land_use_details, 'dien_tich'));
-                if ($totalDetailArea > 0) {
-                    $plot->dien_tich_total = $totalDetailArea;
+            foreach ($landPlots as $plot) {
+                // Parse ky_hieu_mdsd
+                $kyHieuMdsd = $plot->ky_hieu_mdsd;
+                if ($kyHieuMdsd && is_string($kyHieuMdsd)) {
+                    $cleaned = trim($kyHieuMdsd, '{}"');
+                    $plot->ky_hieu_mdsd = $cleaned ? explode(',', $cleaned) : [];
                 } else {
-                    // Nếu chi tiết có nhưng diện tích = 0, dùng dien_tich chung
+                    $plot->ky_hieu_mdsd = [];
+                }
+
+                // Lấy land_use_details với debug chi tiết
+                $detailsQuery = DB::table('land_plot_details')
+                    ->where('land_plot_id', $plot->id);
+
+                Log::info("Plot {$plot->id}: Querying land_plot_details", [
+                    'land_plot_id' => $plot->id,
+                    'details_count' => $detailsQuery->count()
+                ]);
+
+                $landUseDetails = $detailsQuery
+                    ->select(
+                        'id', 
+                        'ky_hieu_mdsd', 
+                        'dien_tich', 
+                        'color',
+                        'geometry', // Lấy trực tiếp geometry trước
+                        DB::raw('CASE 
+                            WHEN geometry IS NOT NULL THEN ST_AsGeoJSON(geometry) 
+                            ELSE NULL 
+                        END as geometry_geojson')
+                    )
+                    ->orderBy('id', 'asc')
+                    ->get()
+                    ->map(function ($detail) {
+                        Log::info("Detail {$detail->id} analysis:", [
+                            'raw_geometry' => $detail->geometry,
+                            'geometry_geojson' => $detail->geometry_geojson,
+                            'geometry_is_null' => is_null($detail->geometry),
+                            'geometry_geojson_is_null' => is_null($detail->geometry_geojson)
+                        ]);
+
+                        // Ưu tiên sử dụng geometry_geojson nếu có
+                        if ($detail->geometry_geojson && is_string($detail->geometry_geojson)) {
+                            try {
+                                $parsed = json_decode($detail->geometry_geojson);
+                                if (json_last_error() === JSON_ERROR_NONE) {
+                                    $detail->geometry = $parsed;
+                                } else {
+                                    $detail->geometry = null;
+                                    Log::warning("JSON decode error for detail {$detail->id}: " . json_last_error_msg());
+                                }
+                            } catch (\Exception $e) {
+                                $detail->geometry = null;
+                                Log::error("Exception parsing geometry for detail {$detail->id}: " . $e->getMessage());
+                            }
+                        } else {
+                            $detail->geometry = null;
+                        }
+
+                        // Xóa trường tạm
+                        unset($detail->geometry_geojson);
+                        
+                        return $detail;
+                    })
+                    ->toArray();
+
+                $plot->land_use_details = $landUseDetails;
+
+                // Tính diện tích tổng
+                if ($plot->plot_list_dien_tich && $plot->plot_list_dien_tich > 0) {
+                    $plot->dien_tich_total = floatval($plot->plot_list_dien_tich);
+                } elseif (!empty($plot->land_use_details)) {
+                    $totalDetailArea = array_sum(array_column($plot->land_use_details, 'dien_tich'));
+                    if ($totalDetailArea > 0) {
+                        $plot->dien_tich_total = $totalDetailArea;
+                    } else {
+                        $plot->dien_tich_total = $plot->dien_tich ? floatval($plot->dien_tich) : 0;
+                    }
+                } else {
                     $plot->dien_tich_total = $plot->dien_tich ? floatval($plot->dien_tich) : 0;
                 }
-            } else {
-                // Ưu tiên 3: Dùng dien_tich chung
-                $plot->dien_tich_total = $plot->dien_tich ? floatval($plot->dien_tich) : 0;
+
+                $plot->dien_tich_total = max(0, $plot->dien_tich_total);
             }
 
-            // Đảm bảo diện tích tổng không âm
-            $plot->dien_tich_total = max(0, $plot->dien_tich_total);
+            Log::info("=== END LAND PLOTS INDEX ===");
 
-            // Debug log
-            Log::info("Plot {$plot->id}: " . 
-                     "plot_list_dien_tich = {$plot->plot_list_dien_tich}, " .
-                     "land_use_details_count = " . count($plot->land_use_details) . ", " .
-                     "dien_tich = {$plot->dien_tich}, " .
-                     "dien_tich_total = {$plot->dien_tich_total}");
+            return response()->json([
+                'success' => true,
+                'data' => $landPlots
+            ], 200);
+
+        } catch (\Exception $e) {
+            Log::error('LandPlots index error: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
-
-        return response()->json([
-            'success' => true,
-            'data' => $landPlots
-        ], 200);
-
-    } catch (\Exception $e) {
-        Log::error('LandPlots index error: ' . $e->getMessage());
-        return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
     }
-}
 
     public function store(Request $request)
     {
@@ -254,6 +365,8 @@ class LandPlotsController extends Controller
                     $landPlotDetail->land_plot_id = $landPlot->id;
                     $landPlotDetail->ky_hieu_mdsd = $detail['ky_hieu_mdsd'];
                     $landPlotDetail->dien_tich = $detail['dien_tich'];
+                    $landPlotDetail->color = $detail['color'] ?? $this->getColorByLandType($detail['ky_hieu_mdsd']);
+                    $landPlotDetail->save();
                     
                     if (isset($detail['geometry']) && !empty($detail['geometry'])) {
                         $geometryJson = json_encode($detail['geometry']);
@@ -265,17 +378,41 @@ class LandPlotsController extends Controller
                                 'UPDATE land_plot_details SET geometry = ST_SetSRID(ST_GeomFromGeoJSON(?), 4326) WHERE id = ?',
                                 [$geometryJson, $landPlotDetail->id]
                             );
+                              
+                            Log::info("✅ Saved geometry for detail ID: " . $landPlotDetail->id, [
+                                'geometry_json' => $geometryJson
+                            ]);
                         }
-                    }
+
+                    }else {
+                        Log::info("❌ No geometry provided for detail ID: " . $landPlotDetail->id);
+                    }     
                     
                     $landPlotDetail->color = $detail['color'] ?? $this->getColorByLandType($detail['ky_hieu_mdsd']);
                     $landPlotDetail->save();
                 }
             }
 
-            $landPlot->load(['plotList', 'landPlotDetails']);
-
             DB::commit();
+
+            // $landPlot->load(['plotList', 'landPlotDetails']);
+
+             // ✅ Load lại với geometry
+            $landPlot->load(['plotList', 'landPlotDetails' => function($query) {
+                $query->select('*', DB::raw('ST_AsGeoJSON(geometry) as geometry_json'));
+            }]);
+
+            // DB::commit();
+
+             // ✅ Xử lý geometry_json thành object
+            if ($landPlot->landPlotDetails) {
+                $landPlot->landPlotDetails->each(function($detail) {
+                    if ($detail->geometry_json) {
+                        $detail->geometry = json_decode($detail->geometry_json, true);
+                    }
+                    unset($detail->geometry_json);
+                });
+            }
 
             return response()->json([
                 'success' => true,
@@ -485,7 +622,12 @@ class LandPlotsController extends Controller
                                 SET geometry = ST_SetSRID(ST_GeomFromGeoJSON(?), 4326) 
                                 WHERE id = ?
                             ', [$geometryJson, $landPlotDetail->id]);
+                            Log::info("✅ Updated geometry for detail ID: " . $landPlotDetail->id, [
+                                'geometry_json' => $geometryJson
+                            ]);
                         }
+                    }else {
+                        Log::info("❌ No geometry provided for detail ID: " . $landPlotDetail->id);
                     }
                 }
 
