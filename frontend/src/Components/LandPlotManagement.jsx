@@ -304,68 +304,6 @@ const LandPlotManagement = () => {
     [token]
   );
 
-  // Hàm chỉnh sửa thửa đất - ĐÃ SỬA LỖI
-  // const fetchLandPlotEdit = useCallback(
-  //   async (formData) => {
-  //     if (!token) {
-  //       setError("Vui lòng đăng nhập trước");
-  //       return false;
-  //     }
-
-  //     setEditing(true);
-  //     setError(null);
-  //     setSuccess(null);
-
-  //     try {
-  //       const response = await axios.put(
-  //         `${API_URL}/api/land_plots/${formData.id}`,
-  //         formData,
-  //         {
-  //           headers: {
-  //             Authorization: `Bearer ${token}`,
-  //             "Content-Type": "application/json",
-  //           },
-  //         }
-  //       );
-
-  //       if (response.data.success) {
-  //         // Cập nhật lại danh sách
-  //         setLandPlots((prev) =>
-  //           prev.map((plot) =>
-  //             plot.id === formData.id ? response.data.data : plot
-  //           )
-  //         );
-
-  //         setShowEditModal(false);
-  //         setSuccess("Cập nhật thửa đất thành công!");
-  //         return true;
-  //       } else {
-  //         setError(response.data.message || "Có lỗi xảy ra khi cập nhật");
-  //         return false;
-  //       }
-  //     } catch (error) {
-  //       console.error("Error updating land plot:", error);
-
-  //       if (error.response) {
-  //         const errorMessage =
-  //           error.response.data?.message ||
-  //           error.response.data?.error ||
-  //           "Có lỗi xảy ra khi cập nhật";
-  //         setError(errorMessage);
-  //       } else if (error.request) {
-  //         setError("Không thể kết nối đến server. Vui lòng thử lại.");
-  //       } else {
-  //         setError("Có lỗi xảy ra: " + error.message);
-  //       }
-
-  //       return false;
-  //     } finally {
-  //       setEditing(false);
-  //     }
-  //   },
-  //   [token]
-  // );
-
   // Memoize search function
   const searchLandPlots = useCallback(
     async (query, retryCount = 0) => {

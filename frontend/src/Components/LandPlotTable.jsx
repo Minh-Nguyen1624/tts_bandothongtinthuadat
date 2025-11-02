@@ -161,30 +161,35 @@ const TableRow = ({
   const [isHovered, setIsHovered] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  const handleEdit = () => {
+  const handleEdit = (e) => {
+    e.stopPropagation();
     if (onEditPlot) {
       onEditPlot(landPlot);
     }
   };
 
-  const handleViewLocation = () => {
+  const handleViewLocation = (e) => {
+    // e.stopPropagation();
     if (onViewLocation) {
       onViewLocation(landPlot);
     }
   };
 
-  const handleDelete = () => {
+  const handleDelete = (e) => {
+    e.stopPropagation();
     if (onDeletePlot) {
       onDeletePlot(landPlot.id);
       setShowDeleteConfirm(false);
     }
   };
 
-  const openDeleteConfirm = () => {
+  const openDeleteConfirm = (e) => {
+    e.stopPropagation();
     setShowDeleteConfirm(true);
   };
 
-  const closeDeleteConfirm = () => {
+  const closeDeleteConfirm = (e) => {
+    e.stopPropagation();
     setShowDeleteConfirm(false);
   };
 
@@ -200,6 +205,7 @@ const TableRow = ({
         style={{
           transition: "background-color 0.2s",
           backgroundColor: isHovered ? "#f8f9fa" : "transparent",
+          cursor: "pointer",
         }}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
@@ -236,6 +242,7 @@ const TableRow = ({
               backgroundColor: "#fff3cd",
               border: "1px solid #ffeaa7",
             }}
+            onClick={(e) => e.stopPropagation()}
           >
             <div
               style={{
@@ -342,7 +349,10 @@ const ActionButtons = ({
   ];
 
   return (
-    <div style={{ display: "flex", justifyContent: "center", gap: "5px" }}>
+    <div
+      className="action-buttons"
+      style={{ display: "flex", justifyContent: "center", gap: "5px" }}
+    >
       {buttons.map((button, index) => (
         <button
           key={index}

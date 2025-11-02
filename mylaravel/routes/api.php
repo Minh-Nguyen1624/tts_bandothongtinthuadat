@@ -102,10 +102,13 @@ Route::middleware('auth:api')->group(function() {
         Route::get('/check-overlap', [LandPlotsController::class, 'checkOverlap']);
         Route::get('/overlap-group', [LandPlotsController::class, 'getOverlapGroup']);
         Route::get('/', [LandPlotsController::class, 'index']);
+        Route::get('/phuong-boundary', [LandPlotsController::class, 'getPhuongBoundary']);
+        Route::get('/phuong-list', [LandPlotsController::class, 'getPhuongList']);
+        Route::get('/validate-boundaries', [LandPlotsController::class, 'validatePlotBoundaries']);
         Route::get('/search', [LandPlotsController::class, 'search']);
-        Route::get('/{id}', [LandPlotsController::class, 'show']);
-        Route::get('/land_plots/export/excel', [LandPlotsController::class, 'exportExcel']);
         Route::post('/land_plots/export/selected', [LandPlotsController::class, 'exportSelectedExcel']);
+        Route::get('/land_plots/export/excel', [LandPlotsController::class, 'exportExcel']);
+        Route::get('/{id}', [LandPlotsController::class, 'show']);
     });
 });
 
@@ -149,11 +152,13 @@ Route::middleware([AdminMiddleware::class])->group(function() {
         // Route::get('/{so_to}/{so_thua}/geometry', [LandPlotsController::class, 'getGeometryByParams']);
         Route::get('/land-plots/geojson', [LandPlotsController::class, 'getGeoJson']);
         Route::get('/export/land-plots', [LandPlotsController::class, 'export'])->name('landplots.export');
+        Route::get('/phuong-list', [LandPlotsController::class, 'getPhuongList']);
+        Route::get('/test-geometry-steps', [LandPlotsController::class, 'testGeometryStepByStep']);
         Route::post('/', [LandPlotsController::class, 'store']);
         Route::put("/{id}", [LandPlotsController::class, 'update']);
         Route::delete("/{id}", [LandPlotsController::class, 'destroy']);
-        Route::get('/test-geometry-steps', [LandPlotsController::class, 'testGeometryStepByStep']);
         Route::post('/{id}/update-geometry', [LandPlotsController::class, 'updateGeometry']);
+        // Route::get('/phuong-boundary', [Land?PlotsController::class, 'getPhuongBoundary']);
     });
 });
 
