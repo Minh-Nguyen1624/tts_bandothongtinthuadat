@@ -202,3 +202,4 @@ Route::get('/validate-data', function() {
 - `GET /api/land_plots/phuong-list` - List all wards
 - `GET /api/land_plots` - List all plots
 
+

@@ -55,21 +55,6 @@ const LoadingOverlay = React.memo(({ isLoading }) =>
 );
 
 // ✅ Component cập nhật bản đồ
-// const UpdateMapView = ({ center, zoom, shouldUpdate }) => {
-//   const map = useMap();
-//   useEffect(() => {
-//     if (
-//       shouldUpdate &&
-//       center &&
-//       Array.isArray(center) &&
-//       center.length === 2
-//     ) {
-//       map.setView(center, zoom);
-//     }
-//   }, [map, center, zoom, shouldUpdate]);
-//   return null;
-// };
-// ✅ Component cập nhật bản đồ - SỬA LỖI NaN
 const UpdateMapView = ({ center, zoom, shouldUpdate }) => {
   const map = useMap();
   useEffect(() => {
@@ -80,8 +65,8 @@ const UpdateMapView = ({ center, zoom, shouldUpdate }) => {
       center.length === 2 &&
       !isNaN(center[0]) &&
       !isNaN(center[1]) &&
-      center[0] !== 0 &&
-      center[1] !== 0
+      Math.abs(center[0]) <= 90 &&
+      Math.abs(center[1]) <= 180
     ) {
       console.log("🗺️ Updating map view to:", center, zoom);
       map.setView(center, zoom);
@@ -391,52 +376,46 @@ const processPlotGeometry = (plot) => {
   return null;
 };
 
-const DANH_SACH_PHUONG_HINH_1 = [
-  "Phường Thới Sơn",
-  "Phường Mỹ Thọ",
-  "Phường Mỹ Phong",
-  "Phường Thới Sơn", // giữ nguyên trùng lặp nếu có
-  "Phường Trung An",
-  "Phường Đạo Thạnh",
-];
+// ✅ MAPPING TÊN PHƯỜNG TỪ boundary SANG land_plots
+const PHUONG_MAPPING = {
+  "Phuong Trung An": "Phường Trung An",
+  "Phuong Đạo Thạnh": "Phường Đạo Thạnh",
+  "Phuong Mỹ Phong": "Phường Mỹ Phong",
+  "Phuong Mỹ Thọ": "Phường Mỹ Thọ",
+  "Phuong Thới Sơn": "Phường Thới Sơn",
+};
 
 const LandUsePlanningMap = () => {
-  const [phuongXa, setPhuongXa] = useState("");
   const [soTo, setSoTo] = useState("");
   const [soThua, setSoThua] = useState("");
   const [landUseData, setLandUseData] = useState([]);
-  const [overlapData, setOverlapData] = useState(null);
+  const [allPlotsData, setAllPlotsData] = useState([]); // ✅ STATE: Tất cả lô đất
   const [mapCenter, setMapCenter] = useState([10.367, 106.345]);
   const [searchCenter, setSearchCenter] = useState([10.367, 106.345]);
   const [error, setError] = useState(null);
   const [searchType, setSearchType] = useState("");
-  const [zoomLevel, setZoomLevel] = useState(15);
+  const [zoomLevel, setZoomLevel] = useState(12);
   const [isLoading, setIsLoading] = useState(false);
   const [lastSearchTime, setLastSearchTime] = useState(0);
   const [shouldUpdateView, setShouldUpdateView] = useState(false);
-  const [displayMode, setDisplayMode] = useState("single");
-  const [currentOverlapIndex, setCurrentOverlapIndex] = useState(0);
 
   const [phuongBoundary, setPhuongBoundary] = useState(null);
   const [selectedPhuong, setSelectedPhuong] = useState("");
   const [phuongList, setPhuongList] = useState([]);
 
+  // ✅ STATE: Lô đất được chọn
+  const [selectedPlot, setSelectedPlot] = useState(null);
+  const [plotBoundary, setPlotBoundary] = useState(null);
+
   const token = localStorage.getItem("token");
   const searchTimeoutRef = useRef(null);
 
-  // Lấy danh sách phường/xã duy nhất từ landUseData
-  const uniquePhuongXa = useMemo(() => {
-    if (!landUseData || landUseData.length === 0) return [];
+  // ✅ HÀM MAP TÊN PHƯỜNG
+  const mapPhuongName = useCallback((boundaryName) => {
+    return PHUONG_MAPPING[boundaryName] || boundaryName;
+  }, []);
 
-    return [
-      ...new Set(
-        landUseData
-          .map((plot) => plot.phuong_xa)
-          .filter((phuong) => phuong && phuong.trim() !== "")
-      ),
-    ];
-  }, [landUseData]);
-
+  // Lấy danh sách phường/xã
   const fetchPhuongList = useCallback(async () => {
     try {
       if (!token) {
@@ -446,27 +425,78 @@ const LandUsePlanningMap = () => {
       setError(null);
       setIsLoading(true);
 
-      const response = await axios.get(`${API_URL}/api/land_plots/phuong-list`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await axios.get(
+        `${API_URL}/api/land_plots/phuong-list`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
       if (response.data.success) {
         setPhuongList(response.data.data);
-      }
-      else {
+      } else {
         setPhuongList([]);
       }
     } catch (error) {
       console.error("Error fetching phuong list:", error);
       setPhuongList([]);
+    } finally {
+      setIsLoading(false);
     }
-    finally {
+  }, [token]);
+
+  // ✅ HÀM: Lấy TẤT CẢ lô đất khi component mount
+  const fetchAllPlots = useCallback(async () => {
+    try {
+      if (!token) {
+        setError("Vui lòng đăng nhập để tiếp tục.");
+        return;
+      }
+
+      setIsLoading(true);
+      setError(null);
+
+      const response = await axios.get(`${API_URL}/api/land_plots`, {
+        headers: { Authorization: `Bearer ${token}` },
+        timeout: 15000,
+      });
+
+      console.log("✅ ALL PLOTS RESPONSE:", response.data);
+
+      if (response.data.success) {
+        const data = response.data.data
+          .map((plot) => {
+            const geometryResult = processPlotGeometry(plot);
+            if (!geometryResult) return null;
+
+            return {
+              ...plot,
+              geom: geometryResult.geometries,
+              geometrySource: geometryResult.source,
+              land_use_details: geometryResult.details,
+              originalGeom: plot.geom,
+            };
+          })
+          .filter(Boolean);
+
+        setAllPlotsData(data);
+        setLandUseData(data); // ✅ HIỂN THỊ TẤT CẢ LÊN MAP NGAY LẬP TỨC
+        setError(`✅ Đã tải ${data.length} lô đất`);
+      } else {
+        setError("❌ Không có dữ liệu lô đất.");
+      }
+
+      setIsLoading(false);
+    } catch (error) {
+      console.error("❌ Error fetching all plots:", error);
+      setError("❌ Lỗi khi tải dữ liệu lô đất.");
       setIsLoading(false);
     }
   }, [token]);
 
   useEffect(() => {
     fetchPhuongList();
-  }, []);
+    fetchAllPlots(); // ✅ TẢI TẤT CẢ LÔ ĐẤT KHI MOUNT
+  }, [fetchPhuongList, fetchAllPlots]);
 
   // Hàm fetch ranh giới phường/xã
   const fetchPhuongBoundary = useCallback(
@@ -489,17 +519,14 @@ const LandUsePlanningMap = () => {
           const boundaryData = response.data.boundary;
           const leafletCoordinates = convertGeoJSONToLeaflet(boundaryData);
 
-          console.log("📍 Leaflet coordinates:", leafletCoordinates);
-
           setPhuongBoundary({
             coordinates: leafletCoordinates,
             name: response.data.phuong_xa,
             ma_hanh_chinh: response.data.ma_hanh_chinh,
           });
 
-          // Cập nhật map center đến phường được chọn - SỬA LỖI NaN
+          // Cập nhật map center đến phường được chọn
           if (leafletCoordinates && leafletCoordinates.length > 0) {
-            // Lấy tất cả tọa độ từ tất cả geometries một cách an toàn
             const allCoords = [];
 
             const flattenCoords = (arr) => {
@@ -517,8 +544,6 @@ const LandUsePlanningMap = () => {
             };
 
             flattenCoords(leafletCoordinates);
-
-            console.log("📍 All coordinates found:", allCoords);
 
             if (allCoords.length > 0) {
               const validCoords = allCoords.filter(
@@ -542,12 +567,6 @@ const LandUsePlanningMap = () => {
                 const centerLat = latSum / validCoords.length;
                 const centerLng = lngSum / validCoords.length;
 
-                console.log("📍 Setting map center to:", [
-                  centerLat,
-                  centerLng,
-                ]);
-
-                // Kiểm tra tọa độ hợp lệ trước khi set
                 if (
                   !isNaN(centerLat) &&
                   !isNaN(centerLng) &&
@@ -558,36 +577,14 @@ const LandUsePlanningMap = () => {
                   setMapCenter([centerLat, centerLng]);
                   setShouldUpdateView(true);
                   setZoomLevel(14);
-                } else {
-                  console.warn("📍 Invalid center coordinates:", [
-                    centerLat,
-                    centerLng,
-                  ]);
-                  // Fallback: sử dụng tọa độ mặc định
-                  setMapCenter([10.367, 106.345]);
-                  setZoomLevel(12);
-                  setShouldUpdateView(true);
                 }
-              } else {
-                console.warn(
-                  "📍 No valid coordinates found, using default center"
-                );
-                setMapCenter([10.367, 106.345]);
-                setZoomLevel(12);
-                setShouldUpdateView(true);
               }
-            } else {
-              console.warn("📍 No coordinates found, using default center");
-              setMapCenter([10.367, 106.345]);
-              setZoomLevel(12);
-              setShouldUpdateView(true);
             }
           }
 
-          setError(null); // Clear error khi thành công
+          setError(null);
         } else {
           setPhuongBoundary(null);
-          // Hiển thị thông tin debug từ backend
           const debugInfo = response.data?.available_phuong
             ? `Các phường có sẵn: ${response.data.available_phuong.join(", ")}`
             : "";
@@ -615,197 +612,195 @@ const LandUsePlanningMap = () => {
     (e) => {
       const selectedValue = e.target.value;
       setSelectedPhuong(selectedValue);
-      setPhuongXa(selectedValue);
 
-      console.log("🔍 Selected phuong from dropdown:", selectedValue);
-      console.log("🔍 Current uniquePhuongXa list:", uniquePhuongXa);
+      // Reset lô đất được chọn khi đổi phường
+      setSelectedPlot(null);
+      setPlotBoundary(null);
+      setSoTo("");
+      setSoThua("");
 
       if (selectedValue) {
         fetchPhuongBoundary(selectedValue);
+
+        // ✅ Lọc lô đất theo phường được chọn
+        const mappedPhuong = mapPhuongName(selectedValue);
+        const filteredPlots = allPlotsData.filter(
+          (plot) =>
+            plot.phuong_xa &&
+            plot.phuong_xa.includes(mappedPhuong.replace("Phuong", "Phường"))
+        );
+
+        if (filteredPlots.length > 0) {
+          setLandUseData(filteredPlots);
+          setError(
+            `✅ Hiển thị ${filteredPlots.length} lô đất trong ${selectedValue}`
+          );
+        } else {
+          // Nếu không tìm thấy lô trong phường, vẫn hiển thị tất cả
+          setLandUseData(allPlotsData);
+          setError(
+            `⚠️ Không tìm thấy lô đất trong ${selectedValue}, hiển thị tất cả lô đất`
+          );
+        }
       } else {
-        // Nếu chọn "--Chọn Phường/Xã--", reset về TP Mỹ Tho
         setPhuongBoundary(null);
         setMapCenter([10.367, 106.345]);
         setZoomLevel(12);
         setShouldUpdateView(true);
         setError(null);
+        // ✅ Khi bỏ chọn phường, hiển thị lại tất cả lô đất
+        setLandUseData(allPlotsData);
       }
     },
-    [fetchPhuongBoundary, uniquePhuongXa]
+    [fetchPhuongBoundary, mapPhuongName, allPlotsData]
   );
 
-  // Debug chi tiết khi landUseData thay đổi
-  useEffect(() => {
-    if (landUseData.length > 0) {
-      console.log("=== DEBUG FINAL LAND USE DATA ===");
-      landUseData.forEach((plot, index) => {
-        console.log(`Plot ${plot.id} (${plot.so_to}/${plot.so_thua}):`, {
-          geometry_source: plot.geometrySource,
-          geometries_count: plot.geom?.length,
-          details_count: plot.land_use_details?.length,
-          has_valid_geometry: !!plot.geom && plot.geom.length > 0,
-        });
-      });
-    }
-  }, [landUseData]);
-
-  // Fetch API + xử lý geom LINH HOẠT
-  const fetchData = useCallback(
-    async (phuongXa = "", soTo = "", soThua = "") => {
-      const now = Date.now();
-      if (now - lastSearchTime < 1000) return;
-      setLastSearchTime(now);
-
-      if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
-
+  // ✅ HÀM TÌM LÔ ĐẤT CỤ THỂ
+  const fetchPlotByNumber = useCallback(
+    (phuongXa, soTo, soThua) => {
       try {
-        if (!token) {
-          setError("Vui lòng đăng nhập để tiếp tục.");
-          return;
-        }
-
         setIsLoading(true);
         setError(null);
-        setShouldUpdateView(false);
-        setOverlapData(null);
+        setSelectedPlot(null);
+        setPlotBoundary(null);
 
-        // Gọi API land_plots
-        const landResponse = await axios.get(`${API_URL}/api/land_plots`, {
-          params: { phuong_xa: phuongXa, so_to: soTo, so_thua: soThua },
-          headers: { Authorization: `Bearer ${token}` },
-          timeout: 10000,
-        });
+        console.log("🔍 SEARCHING SPECIFIC PLOT:", { phuongXa, soTo, soThua });
 
-        console.log("✅ Land API response:", landResponse.data);
+        // Tìm trong dữ liệu đã có
+        const mappedPhuong = mapPhuongName(phuongXa);
+        const foundPlot = allPlotsData.find(
+          (plot) =>
+            plot.so_to == soTo &&
+            plot.so_thua == soThua &&
+            plot.phuong_xa &&
+            plot.phuong_xa.includes(mappedPhuong.replace("Phuong", "Phường"))
+        );
 
-        if (landResponse.data.success) {
-          const data = landResponse.data.data
-            .map((plot) => {
-              console.log(`📊 Original plot ${plot.id}:`, {
-                so_to: plot.so_to,
-                so_thua: plot.so_thua,
-                has_land_use_details: !!plot.land_use_details,
-                land_use_details_count: plot.land_use_details?.length,
-                has_geom: !!plot.geom,
-              });
+        if (foundPlot) {
+          console.log("🎯 FOUND PLOT IN CACHE:", foundPlot);
 
-              // Xử lý geometry LINH HOẠT
-              const geometryResult = processPlotGeometry(plot);
+          setSelectedPlot(foundPlot);
+          setPlotBoundary(foundPlot.geom);
 
-              if (!geometryResult) {
-                console.warn(`⚠️ No valid geometry for plot ${plot.id}`);
-                return null;
-              }
+          // Cập nhật map center đến lô đất
+          if (foundPlot.geom && foundPlot.geom.length > 0) {
+            const allCoords = foundPlot.geom
+              .flat(3)
+              .filter((coord) => Array.isArray(coord) && coord.length === 2);
 
-              // Tạo plot mới với geometry đã xử lý
-              const processedPlot = {
-                ...plot,
-                geom: geometryResult.geometries,
-                geometrySource: geometryResult.source,
-                land_use_details: geometryResult.details,
-                originalGeom: plot.geom,
-              };
+            if (allCoords.length > 0) {
+              const latSum = allCoords.reduce(
+                (sum, coord) => sum + coord[0],
+                0
+              );
+              const lngSum = allCoords.reduce(
+                (sum, coord) => sum + coord[1],
+                0
+              );
 
-              console.log(`✅ Processed plot ${plot.id}:`, {
-                source: processedPlot.geometrySource,
-                geometries_count: processedPlot.geom.length,
-                details_count: processedPlot.land_use_details.length,
-              });
+              const centerLat = latSum / allCoords.length;
+              const centerLng = lngSum / allCoords.length;
 
-              return processedPlot;
-            })
-            .filter(Boolean);
+              console.log("📍 Setting plot center to:", [centerLat, centerLng]);
 
-          console.log("✅ Final processed data:", data);
-
-          setLandUseData(data);
-          setSearchType(landResponse.data.search_type || "suggest");
-
-          // Cập nhật map center dựa trên geometries
-          if (data.length > 0) {
-            const firstPlot = data[0];
-            if (firstPlot.geom && firstPlot.geom.length > 0) {
-              // Lấy tất cả tọa độ từ tất cả geometries
-              const allCoords = firstPlot.geom
-                .flat(3)
-                .filter((coord) => Array.isArray(coord) && coord.length === 2);
-
-              if (allCoords.length > 0) {
-                const latSum = allCoords.reduce(
-                  (sum, coord) => sum + coord[0],
-                  0
-                );
-                const lngSum = allCoords.reduce(
-                  (sum, coord) => sum + coord[1],
-                  0
-                );
-
-                const centerLat = latSum / allCoords.length;
-                const centerLng = lngSum / allCoords.length;
-
-                console.log("📍 Setting map center to:", [
-                  centerLat,
-                  centerLng,
-                ]);
-
-                setSearchCenter([centerLat, centerLng]);
-                setMapCenter([centerLat, centerLng]);
-                setShouldUpdateView(true);
-                setZoomLevel(18);
-              }
+              setSearchCenter([centerLat, centerLng]);
+              setMapCenter([centerLat, centerLng]);
+              setShouldUpdateView(true);
+              setZoomLevel(18); // Zoom sát vào lô đất
             }
           }
 
-          if (data.length === 0) {
-            setError("Không tìm thấy lô đất phù hợp.");
-          } else if (landResponse.data.search_type === "exact") {
-            setError(null);
-          } else {
-            setError(`Tìm thấy ${data.length} kết quả gợi ý.`);
-          }
+          setError(
+            `✅ Đã tìm thấy và zoom đến lô đất: ${foundPlot.so_to}/${foundPlot.so_thua}`
+          );
+        } else {
+          console.warn("❌ PLOT NOT FOUND IN CACHE");
+          setError(
+            `❌ Không tìm thấy lô đất ${soTo}/${soThua} trong ${phuongXa}`
+          );
         }
 
         setIsLoading(false);
       } catch (error) {
-        console.error("❌ Fetch error:", error.response?.data || error.message);
-        if (error.response?.status === 401) {
-          setError("Vui lòng đăng nhập để tiếp tục.");
-        } else {
-          setError("Lỗi khi lấy dữ liệu từ server.");
-        }
-        setLandUseData([]);
-        setOverlapData(null);
+        console.error("❌ Error finding plot:", error);
+        setError("❌ Lỗi khi tìm kiếm lô đất: " + error.message);
         setIsLoading(false);
       }
     },
-    [token, lastSearchTime]
+    [allPlotsData, mapPhuongName]
   );
 
+  // ✅ HÀM XỬ LÝ TÌM KIẾM
   const handleSearch = () => {
-    // Use selectedPhuong if available, otherwise use phuongXa
-    const wardToSearch = selectedPhuong || phuongXa;
-    
-    if (!wardToSearch && !soTo && !soThua) {
-      setError("Nhập ít nhất 1 thông tin để tra cứu.");
+    if (!selectedPhuong) {
+      setError("❌ Vui lòng chọn phường/xã trước.");
       return;
     }
-    fetchData(wardToSearch, soTo, soThua);
+
+    // Map tên phường từ boundary sang land_plots
+    const mappedPhuong = mapPhuongName(selectedPhuong);
+
+    console.log("🔄 Searching plot:", {
+      selected: selectedPhuong,
+      mapped: mappedPhuong,
+      soTo,
+      soThua,
+    });
+
+    // Nếu có đủ thông tin số tờ + số thửa, tìm lô đất cụ thể
+    if (soTo && soThua) {
+      fetchPlotByNumber(selectedPhuong, soTo, soThua);
+    } else {
+      // Nếu chỉ chọn phường, lọc lô đất theo phường
+      const filteredPlots = allPlotsData.filter(
+        (plot) =>
+          plot.phuong_xa &&
+          plot.phuong_xa.includes(mappedPhuong.replace("Phuong", "Phường"))
+      );
+
+      if (filteredPlots.length > 0) {
+        setLandUseData(filteredPlots);
+        setError(
+          `✅ Hiển thị ${filteredPlots.length} lô đất trong ${selectedPhuong}`
+        );
+
+        // Zoom đến phường đã chọn
+        if (phuongBoundary && phuongBoundary.coordinates) {
+          const allCoords = phuongBoundary.coordinates
+            .flat(3)
+            .filter((coord) => Array.isArray(coord) && coord.length === 2);
+
+          if (allCoords.length > 0) {
+            const latSum = allCoords.reduce((sum, coord) => sum + coord[0], 0);
+            const lngSum = allCoords.reduce((sum, coord) => sum + coord[1], 0);
+
+            const centerLat = latSum / allCoords.length;
+            const centerLng = lngSum / allCoords.length;
+
+            setSearchCenter([centerLat, centerLng]);
+            setMapCenter([centerLat, centerLng]);
+            setShouldUpdateView(true);
+            setZoomLevel(14);
+          }
+        }
+      } else {
+        setError(`❌ Không tìm thấy lô đất trong ${selectedPhuong}`);
+      }
+    }
   };
 
-  // ✅ Auto-search when ward is selected and both sheet/plot numbers are entered
+  // ✅ Auto-search khi có đủ thông tin
   useEffect(() => {
-    // Only auto-search if ward is selected AND both sheet and plot numbers are provided
     if (selectedPhuong && soTo && soThua) {
-      console.log("🔍 Auto-searching with:", { selectedPhuong, soTo, soThua });
-      // Use a small delay to avoid multiple searches while typing
+      console.log("🔍 Auto-searching plot:", { selectedPhuong, soTo, soThua });
+
       const autoSearchTimer = setTimeout(() => {
-        fetchData(selectedPhuong, soTo, soThua);
-      }, 500); // 500ms debounce
+        fetchPlotByNumber(selectedPhuong, soTo, soThua);
+      }, 800);
 
       return () => clearTimeout(autoSearchTimer);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedPhuong, soTo, soThua]);
+  }, [selectedPhuong, soTo, soThua, fetchPlotByNumber]);
 
   // Reset shouldUpdateView sau khi đã update xong
   useEffect(() => {
@@ -815,15 +810,9 @@ const LandUsePlanningMap = () => {
     }
   }, [shouldUpdateView]);
 
-  useEffect(() => {
-    fetchData("Trung An", "", "");
-  }, [fetchData]);
-
   // ✅ Render ranh giới phường/xã
   const renderedPhuongBoundary = useMemo(() => {
     if (!phuongBoundary || !phuongBoundary.coordinates) return null;
-
-    console.log("🎨 Rendering phuong boundary:", phuongBoundary.name);
 
     return phuongBoundary.coordinates.map((polygonCoords, index) => (
       <Polygon
@@ -853,9 +842,42 @@ const LandUsePlanningMap = () => {
     ));
   }, [phuongBoundary]);
 
-  // ✅ Render polygons LINH HOẠT
+  // ✅ Render lô đất được chọn (nổi bật)
+  const renderedSelectedPlot = useMemo(() => {
+    if (!selectedPlot || !plotBoundary || isLoading) return null;
+
+    console.log(
+      "🎨 Rendering selected plot:",
+      selectedPlot.so_to,
+      selectedPlot.so_thua
+    );
+
+    return plotBoundary.map((polygonCoords, polyIndex) => (
+      <Polygon
+        key={`selected-plot-${selectedPlot.id}-${polyIndex}`}
+        positions={polygonCoords}
+        pathOptions={{
+          color: "#ff0000",
+          fillColor: "#ff0000",
+          fillOpacity: 0.3,
+          weight: 4,
+          stroke: true,
+          lineJoin: "round",
+          className: "selected-plot-highlight",
+        }}
+      >
+        <Popup>
+          <div style={{ minWidth: "280px" }}>
+            <strong style={{ color: "#ff0000" }}>📍 LÔ ĐẤT ĐƯỢC CHỌN</strong>
+            <PlotInfo plot={selectedPlot} />
+          </div>
+        </Popup>
+      </Polygon>
+    ));
+  }, [selectedPlot, plotBoundary, isLoading]);
+
+  // ✅ Render polygons tổng quan (tất cả lô đất)
   const renderedPolygons = useMemo(() => {
-    console.log("🔍 Rendering polygons with landUseData:", landUseData);
     if (isLoading) return null;
 
     const getStyleByZoom = (zoom) => {
@@ -880,43 +902,27 @@ const LandUsePlanningMap = () => {
 
     const style = getStyleByZoom(zoomLevel);
 
-    // ✅ Render từ landUseData (linh hoạt cả land_use_details và main geom)
     if (landUseData.length > 0) {
       console.log(`🎨 Rendering ${landUseData.length} plots`);
 
       return landUseData
         .flatMap((plot, plotIndex) => {
           if (!plot.land_use_details || plot.land_use_details.length === 0) {
-            console.warn(`⚠️ Plot ${plot.id} has no land_use_details`);
             return null;
           }
 
           return plot.land_use_details
             .map((detail, detailIndex) => {
               if (!detail.leafletGeometry) {
-                console.warn(
-                  `⚠️ Detail ${detail.ky_hieu_mdsd} has no geometry`
-                );
                 return null;
               }
 
               const fillColor =
                 detail.color || getColorByLoaiDat(detail.ky_hieu_mdsd);
 
-              console.log(
-                `🎨 Rendering ${detail.ky_hieu_mdsd} (source: ${plot.geometrySource})`,
-                {
-                  color: fillColor,
-                  geometry_type: Array.isArray(detail.leafletGeometry[0])
-                    ? "polygon"
-                    : "unknown",
-                }
-              );
-
-              // Render từng polygon trong geometry
               return detail.leafletGeometry.map((polygonCoords, polyIndex) => (
                 <Polygon
-                  key={`${plot.id}-${detail.ky_hieu_mdsd}-${polyIndex}-${plot.geometrySource}`}
+                  key={`${plot.id}-${detail.ky_hieu_mdsd}-${polyIndex}`}
                   positions={polygonCoords}
                   pathOptions={{
                     color: fillColor,
@@ -1015,7 +1021,6 @@ const LandUsePlanningMap = () => {
             )}
             {isLoading ? "Đang tải..." : "Tra cứu"}
           </button>
-
         </div>
         <select className="select_qh">
           <option value="">Chọn quy hoạch</option>
@@ -1024,16 +1029,21 @@ const LandUsePlanningMap = () => {
           <option value="Đất nông nghiệp">Đất nông nghiệp</option>
         </select>
       </div>
-{/* 
+
+      {/* Hiển thị thông báo */}
       {error && (
         <div
           className={`error-message ${
-            searchType === "suggest" ? "warning" : "error"
+            error.includes("✅")
+              ? "success"
+              : error.includes("❌")
+              ? "error"
+              : "warning"
           }`}
         >
           {error}
         </div>
-      )} */}
+      )}
 
       <div style={containerStyle}>
         <LoadingOverlay isLoading={isLoading} />
@@ -1043,11 +1053,10 @@ const LandUsePlanningMap = () => {
           style={containerStyle}
           zoomControl={false}
           maxZoom={22}
-          minZoom={10}
+          minZoom={20}
           zoomSnap={0.5}
           zoomDelta={0.5}
         >
-          {/* SỬ DỤNG LAYERS CONTROL ĐỂ ĐỔI BẢN ĐỒ NỀN */}
           <LayersControl position="topright">
             <LayersControl.BaseLayer checked name="🗺️ OpenStreetMap">
               <TileLayer
@@ -1071,40 +1080,6 @@ const LandUsePlanningMap = () => {
                 maxNativeZoom={19}
               />
             </LayersControl.BaseLayer>
-
-            <LayersControl.BaseLayer name="🌍 CartoDB Light">
-              <TileLayer
-                url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
-                attribution="&copy; CartoDB"
-                maxZoom={22}
-                minZoom={8}
-                noWrap={true}
-                maxNativeZoom={19}
-              />
-            </LayersControl.BaseLayer>
-
-            <LayersControl.BaseLayer name="🌃 CartoDB Dark">
-              <TileLayer
-                url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-                attribution="&copy; CartoDB"
-                maxZoom={22}
-                minZoom={8}
-                noWrap={true}
-                maxNativeZoom={19}
-              />
-            </LayersControl.BaseLayer>
-
-            <LayersControl.BaseLayer name="⛰️ Địa hình">
-              <TileLayer
-                url="https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png"
-                attribution="&copy; OpenTopoMap"
-                subdomains={["a", "b", "c"]}
-                maxZoom={22}
-                minZoom={8}
-                noWrap={true}
-                maxNativeZoom={17}
-              />
-            </LayersControl.BaseLayer>
           </LayersControl>
 
           <ZoomControl position="topright" />
@@ -1119,7 +1094,10 @@ const LandUsePlanningMap = () => {
           {/* Hiển thị ranh giới phường/xã */}
           {renderedPhuongBoundary}
 
-          {/* Hiển thị các polygon đất */}
+          {/* ✅ HIỂN THỊ LÔ ĐẤT ĐƯỢC CHỌN (nổi bật) */}
+          {renderedSelectedPlot}
+
+          {/* ✅ HIỂN THỊ TẤT CẢ LÔ ĐẤT */}
           {renderedPolygons}
         </MapContainer>
       </div>
