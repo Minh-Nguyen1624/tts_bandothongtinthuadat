@@ -5,8 +5,8 @@ import {
   FaExclamationTriangle,
   FaExpand,
 } from "react-icons/fa";
-import LandPlotMap from "../../../shared/Components/LandPlotMap";
-// import LandPlotMap from "../../../Components/LandPlotMap";
+// import LandPlotMap from "../../../shared/Components/LandPlotMap";
+import LandPlotMap from "../../../Components/LandPlotMap";
 
 const MapSection = ({
   geom,

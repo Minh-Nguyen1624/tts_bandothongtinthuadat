@@ -27,19 +27,20 @@ function Header({ isAuthenticated, user, handleLogout }) {
         >
           Home
         </Link>
+
+        <Link
+          to="/land-use-planning-map"
+          style={{
+            textDecoration: "none",
+            color: "#28a745",
+            fontWeight: "bold",
+          }}
+        >
+          Bản đồ quy hoạch sử dụng đất
+        </Link>
+
         {isAuthenticated && user?.role === "admin" && (
           <>
-            <Link
-              to="/land-use-planning-map"
-              style={{
-                textDecoration: "none",
-                color: "#28a745",
-                fontWeight: "bold",
-              }}
-            >
-              Bản đồ quy hoạch sử dụng đất
-            </Link>
-
             <Link
               to="/dashboard"
               style={{

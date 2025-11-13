@@ -154,7 +154,7 @@ const LandPlotAdd = memo(
           throw new Error("No authentication token found. Please log in.");
         }
 
-        console.log("🔍 Searching EXACT PlotList with:", { so_to, so_thua });
+        // console.log("🔍 Searching EXACT PlotList with:", { so_to, so_thua });
 
         const response = await axios.get(
           "http://127.0.0.1:8000/api/plotlists",
@@ -169,7 +169,7 @@ const LandPlotAdd = memo(
           }
         );
 
-        console.log("📊 PlotList API Response:", response.data);
+        // console.log("📊 PlotList API Response:", response.data);
 
         if (response.data.success && response.data.data.length > 0) {
           // TÌM CHÍNH XÁC số tờ và số thửa
@@ -179,7 +179,7 @@ const LandPlotAdd = memo(
               String(plot.so_thua) === String(so_thua)
           );
 
-          console.log("🎯 Exact match found:", exactPlotList);
+          // console.log("🎯 Exact match found:", exactPlotList);
 
           if (exactPlotList) {
             setPlotListInfo(exactPlotList);
@@ -191,7 +191,7 @@ const LandPlotAdd = memo(
                   : "",
             }));
           } else {
-            console.log("❌ No EXACT PlotList match found");
+            // console.log("❌ No EXACT PlotList match found");
             setPlotListInfo(null);
             setFormData((prev) => ({
               ...prev,
@@ -199,7 +199,7 @@ const LandPlotAdd = memo(
             }));
           }
         } else {
-          console.log("❌ No PlotList found at all");
+          // console.log("❌ No PlotList found at all");
           setPlotListInfo(null);
           setFormData((prev) => ({
             ...prev,

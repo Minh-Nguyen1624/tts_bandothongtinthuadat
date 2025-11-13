@@ -26,7 +26,7 @@ export const searchPlotList = async (
       throw new Error("No authentication token found. Please log in.");
     }
 
-    console.log("🔍 Searching EXACT PlotList with:", { so_to, so_thua });
+    // console.log("🔍 Searching EXACT PlotList with:", { so_to, so_thua });
 
     const response = await axios.get(`${API_URL}/api/plotlists`, {
       params: {
@@ -38,7 +38,7 @@ export const searchPlotList = async (
       },
     });
 
-    console.log("📊 PlotList API Response:", response.data);
+    // console.log("📊 PlotList API Response:", response.data);
 
     if (response.data.success && response.data.data.length > 0) {
       const exactPlotList = response.data.data.find(
@@ -47,7 +47,7 @@ export const searchPlotList = async (
           String(plot.so_thua) === String(so_thua)
       );
 
-      console.log("🎯 Exact match found:", exactPlotList);
+      // console.log("🎯 Exact match found:", exactPlotList);
 
       if (exactPlotList) {
         setPlotListInfo(exactPlotList);
@@ -59,7 +59,7 @@ export const searchPlotList = async (
               : "",
         }));
       } else {
-        console.log("❌ No EXACT PlotList match found");
+        // console.log("❌ No EXACT PlotList match found");
         setPlotListInfo(null);
         setFormData((prev) => ({
           ...prev,
@@ -67,7 +67,7 @@ export const searchPlotList = async (
         }));
       }
     } else {
-      console.log("❌ No PlotList found at all");
+      // console.log("❌ No PlotList found at all");
       setPlotListInfo(null);
       setFormData((prev) => ({
         ...prev,

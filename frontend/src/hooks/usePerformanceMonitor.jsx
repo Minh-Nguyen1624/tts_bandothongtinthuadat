@@ -20,9 +20,9 @@ export const usePerformanceMonitor = (componentName, options = {}) => {
     // Use requestIdleCallback for non-essential logging
     if ("requestIdleCallback" in window) {
       requestIdleCallback(() => {
-        console.log(
-          `🚀 ${componentName} mounted in ${mountDuration.toFixed(2)}ms`
-        );
+        // console.log(
+        //   `🚀 ${componentName} mounted in ${mountDuration.toFixed(2)}ms`
+        // );
 
         if (mountDuration > warnOnMountTime) {
           console.warn(

@@ -6,8 +6,8 @@ const TableRow = React.memo(({ item, index, currentType, tableHeaders }) => {
 
   // Render nội dung cell theo cấu hình
   const renderCellContent = (header, item) => {
-    console.log(`TableRow [${currentType}] item:`, item);
-    console.log(`TableRow [${currentType}] header:`, header);
+    // console.log(`TableRow [${currentType}] item:`, item);
+    // console.log(`TableRow [${currentType}] header:`, header);
 
     // Chỉ xử lý cho land_plots
     switch (header) {

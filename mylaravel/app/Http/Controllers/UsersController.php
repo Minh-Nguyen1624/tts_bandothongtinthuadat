@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Models\Unit;
+use App\Models\Teams;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
@@ -31,8 +33,10 @@ class UsersController extends Controller
                 'last_name' => 'nullable|string|max:100',
                 'email' => 'required|email|unique:users,email',
                 'password' => 'required|string|min:8',
-                'unit_id' => 'nullable|exists:units,id',
-                'team_id' => 'nullable|exists:teams,id',
+                // 'unit_id' => 'nullable|exists:units,id',
+                // 'team_id' => 'nullable|exists:teams,id',
+                'unit_code' => 'required|exists:units,code',
+                'team_code' => 'required|exists:teams,code',
                 'avatar' => 'nullable|url',
                 'role' => 'required|in:user,admin,manager',
                 'status' => 'required|in:active,inactive,suspended',
@@ -46,6 +50,20 @@ class UsersController extends Controller
                 return response()->json(['errors' => $validator->errors()], 422);
             }
 
+            $unitId = null;
+            $teamId = null;
+
+            if($request->unit_code){
+                $unit = Unit::where('code', $request->unit_code)->firstOrFail();
+                $unitId = $unit->id;
+            }
+
+            if($request->team_code){
+                $team = Teams::where('code', $request->team_code)->firstOrFail();
+                $teamId = $team->id;
+            }
+
+
             // Nếu hợp lệ → tạo user mới.
             // Password được hash bằng Hash::make().
             $user = User::create([
@@ -54,8 +72,10 @@ class UsersController extends Controller
                 'last_name' => $request->last_name,
                 'email' => $request->email,
                 'password' => Hash::make($request->password),
-                'unit_id' => $request->unit_id,
-                'team_id' => $request->team_id,
+                // 'unit_id' => $request->unit_id,
+                // 'team_id' => $request->team_id,
+                'unit_id' => $unitId,
+                'team_id' => $teamId,
                 'avatar' => $request->avatar,
                 'role' => $request->role,
                 'status' => $request->status,
@@ -75,16 +95,50 @@ class UsersController extends Controller
         }
     }
 
-    public function show(string $id) // show($id) → GET /users/{id}
+    // public function show(string $id) // show($id) → GET /users/{id}
+    // {
+    //    try {
+    //         // Mục đích: xem chi tiết 1 user.
+    //         $user = User::with(['unit', 'team'])->findOrFail($id);
+    //         return response()->json(['success' => true, 'message' => 'User retrieved successfully' , 'data' => $user], 200);
+    //    } catch (\Exception $e) {
+    //         \Log::error('Test error: ' . $e->getMessage());
+    //         return response()->json(['success' => false, 'message' => $e->getMessage()],500);
+    //    }
+    // }
+    public function show(string $id)
     {
-       try {
-            // Mục đích: xem chi tiết 1 user.
+        try {
             $user = User::with(['unit', 'team'])->findOrFail($id);
-            return response()->json(['success' => true, 'message' => 'User retrieved successfully' , 'data' => $user], 200);
-       } catch (\Exception $e) {
-            \Log::error('Test error: ' . $e->getMessage());
-            return response()->json(['success' => false, 'message' => $e->getMessage()],500);
-       }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'User retrieved successfully',
+                'data' => [
+                    'id' => $user->id,
+                    'first_name' => $user->first_name,
+                    'last_name' => $user->last_name,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'phone' => $user->phone,
+                    'date_of_birth' => $user->date_of_birth,
+                    'gender' => $user->gender,
+                    'address' => $user->address,
+                    'avatar' => $user->avatar,
+                    'role' => $user->role,
+                    'status' => $user->status,
+                    'unit_code' => $user->unit?->code,
+                    'team_code' => $user->team?->code,
+                    'unit' => $user->unit,
+                    'team' => $user->team,
+                    'created_at' => $user->created_at,
+                    'updated_at' => $user->updated_at,
+                    'password' => $user->password, // TRẢ VỀ MẬT KHẨU HASH
+                ]
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 404);
+        }
     }
 
     public function update(Request $request, string $id) // update($id) → PUT/PATCH /users/{id}
@@ -99,8 +153,10 @@ class UsersController extends Controller
                 'last_name'   => 'nullable|string|max:100', 
                 'email'       => 'nullable|email|unique:users,email,' . $id, // bỏ khoảng trắng + thêm $id để bỏ qua user hiện tại
                 'password'    => 'nullable|string|min:8',
-                'unit_id'     => 'nullable|exists:units,id',
-                'team_id'     => 'nullable|exists:teams,id',
+                // 'unit_id'     => 'nullable|exists:units,id',
+                // 'team_id'     => 'nullable|exists:teams,id',
+                'unit_code' => 'nullable|exists:units,code',
+                'team_code' => 'nullable|exists:teams,code',
                 'avatar'      => 'nullable|url',
                 'role'        => 'nullable|in:user,admin,manager',
                 'status'      => 'nullable|in:active,inactive,suspended', // bỏ khoảng trắng thừa
@@ -116,6 +172,18 @@ class UsersController extends Controller
 
             $validatedData = $validator->validate();
 
+            if(isset($validatedData['unit_code'])){
+                $unit = Unit::where('code', $validatedData['unit_code'])->firstOrFail();
+                $validatedData['unit_id'] = $unit->id;
+                unset($validatedData['unit_code']);
+            }
+
+            if(isset($validatedData['team_code'])){
+                $team = Teams::where('code', $validatedData['team_code'])->firstOrFail();
+                $validatedData['team_id'] = $team->id;
+                unset($validatedData['team_code']);
+            }
+
             // Nếu update password → hash lại trước khi lưu.
             if (isset($validatedData['password'])) {
                 $validatedData['password'] = Hash::make($validatedData['password']);
@@ -125,7 +193,32 @@ class UsersController extends Controller
             $user->update($validatedData);
             $user->load(['unit', 'team']); // Load relationships
 
-            return response()->json(['success' => true, 'message' => 'User updated successfully', 'data' => $user], 200);
+            // return response()->json(['success' => true, 'message' => 'User updated successfully', 'data' => $user], 200);
+            return response()->json([
+                'success' => true,
+                'message' => 'User updated successfully',
+                'data' => [
+                    'id' => $user->id,
+                    'first_name' => $user->first_name,
+                    'last_name' => $user->last_name,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'phone' => $user->phone,
+                    'date_of_birth' => $user->date_of_birth,
+                    'gender' => $user->gender,
+                    'address' => $user->address,
+                    'avatar' => $user->avatar,
+                    'role' => $user->role,
+                    'status' => $user->status,
+                    'unit_code' => $user->unit?->code,
+                    'team_code' => $user->team?->code,
+                    'unit' => $user->unit,
+                    'team' => $user->team,
+                    'created_at' => $user->created_at,
+                    'updated_at' => $user->updated_at,
+                    'password' => $user->password, // TRẢ VỀ HASH MỚI (nếu có)
+                ]
+            ], 200);
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 500);
         }

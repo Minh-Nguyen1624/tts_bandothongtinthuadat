@@ -68,7 +68,7 @@ const UpdateMapView = ({ center, zoom, shouldUpdate }) => {
       Math.abs(center[0]) <= 90 &&
       Math.abs(center[1]) <= 180
     ) {
-      console.log("🗺️ Updating map view to:", center, zoom);
+      // console.log("🗺️ Updating map view to:", center, zoom);
       map.setView(center, zoom);
     } else {
       console.warn("🗺️ Invalid center coordinates, skipping update:", center);
@@ -89,9 +89,120 @@ const MapZoomHandler = ({ setZoomLevel }) => {
   return null;
 };
 
+// 🎨 Màu theo mã loại đất
+const getColorByLoaiDat = (loai) => {
+  if (!loai) return "#adb5bd";
+
+  const loaiStr = typeof loai === "string" ? loai : String(loai);
+
+  const colors = {
+    CAN: "#e03804ec",
+    ONT: "#ff6b6b",
+    ODT: "#ff8787",
+    CLN: "#69db7c",
+    LUC: "#51cf66",
+    BHK: "#40c057",
+    RSX: "#2f9e44",
+    RPH: "#37b24d",
+    NTS: "#20c997",
+    DGT: "#4dabf7",
+    HCC: "#748ffc",
+    DHT: "#5c7cfa",
+    TMD: "#ffa94d",
+    SKC: "#fab005",
+    SKK: "#f59f00",
+    SKN: "#e67700",
+    BCD: "#adb5bd",
+    NCD: "#868e96",
+    SONG: "#339af0",
+    KNT: "#228be6",
+  };
+
+  const key = loaiStr.trim().toUpperCase();
+  return colors[key] || "#868e96";
+};
+
 // ✅ Hiển thị thông tin popup chi tiết
 const PlotInfo = ({ plot, detail }) => {
   const landUseTypes = plot.ky_hieu_mdsd || ["Chưa xác định"];
+
+  const handleDirectionsClick = () => {
+    if (!plot) {
+      alert("Không có thông tin lô đất");
+      return;
+    }
+
+    let destinationLat, destinationLng;
+
+    // ✅ BƯỚC 1: Ưu tiên dùng plot.lat, plot.lng nếu có
+    if (plot.lat && plot.lng && !isNaN(plot.lat) && !isNaN(plot.lng)) {
+      destinationLat = parseFloat(plot.lat);
+      destinationLng = parseFloat(plot.lng);
+    }
+    // ✅ BƯỚC 2: Nếu không có → lấy TÂM của geometry (bất kỳ detail nào)
+    else {
+      const geometry =
+        detail?.leafletGeometry ||
+        plot.geom?.[0] ||
+        plot.land_use_details?.[0]?.leafletGeometry;
+
+      if (geometry && Array.isArray(geometry) && geometry.length > 0) {
+        const allCoords = geometry
+          .flat(3)
+          .filter(
+            (coord) =>
+              Array.isArray(coord) &&
+              coord.length === 2 &&
+              !isNaN(coord[0]) &&
+              !isNaN(coord[1])
+          );
+
+        if (allCoords.length > 0) {
+          const latSum = allCoords.reduce((sum, c) => sum + c[0], 0);
+          const lngSum = allCoords.reduce((sum, c) => sum + c[1], 0);
+          destinationLat = latSum / allCoords.length;
+          destinationLng = lngSum / allCoords.length;
+        }
+      }
+    }
+
+    // ✅ BƯỚC 3: Kiểm tra tọa độ hợp lệ
+    if (
+      !destinationLat ||
+      !destinationLng ||
+      isNaN(destinationLat) ||
+      isNaN(destinationLng) ||
+      Math.abs(destinationLat) > 90 ||
+      Math.abs(destinationLng) > 180
+    ) {
+      alert("Tọa độ lô đất không hợp lệ, không thể hướng dẫn đường đi.");
+      return;
+    }
+
+    // ✅ Mở Google Maps
+    const createGoogleMapsUrl = (origin = null) => {
+      const baseUrl = "https://www.google.com/maps/dir/?api=1";
+      const destination = `${destinationLat},${destinationLng}`;
+      return origin
+        ? `${baseUrl}&origin=${origin}&destination=${destination}&travelmode=driving`
+        : `${baseUrl}&destination=${destination}&travelmode=driving`;
+    };
+
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const origin = `${position.coords.latitude},${position.coords.longitude}`;
+          window.open(createGoogleMapsUrl(origin), "_blank");
+        },
+        () => {
+          window.open(createGoogleMapsUrl(), "_blank");
+        },
+        { enableHighAccuracy: true, timeout: 5000 }
+      );
+    } else {
+      window.open(createGoogleMapsUrl(), "_blank");
+    }
+  };
 
   // Nếu có detail riêng, hiển thị thông tin chi tiết
   if (detail) {
@@ -120,17 +231,23 @@ const PlotInfo = ({ plot, detail }) => {
         <p>Chủ sở hữu: {plot.ten_chu || "Chưa cập nhật"}</p>
         <p>Phường/Xã: {plot.phuong_xa}</p>
 
-        <a
-          href={`https://www.google.com/maps/dir/?api=1&destination=${plot.geom[0][1]},${plot.geom[0][0]}`}
-          target="_blank"
-          rel="noopener noreferrer"
+        <button
+          onClick={handleDirectionsClick}
           style={{
             border: "none",
-            background: "rgba(255, 255, 255, 0.5)",
+            background: "#007bff",
+            color: "white",
+            padding: "8px 16px",
+            borderRadius: "4px",
+            cursor: "pointer",
+            fontSize: "14px",
+            fontWeight: "bold",
+            marginTop: "10px",
+            width: "100%",
           }}
         >
-          Hướng dẫn đường đi
-        </a>
+          🗺️ Hướng dẫn đường đi
+        </button>
       </div>
     );
   }
@@ -235,144 +352,206 @@ const PlotInfo = ({ plot, detail }) => {
       )}
 
       <p>Chủ sở hữu: {plot.ten_chu || "Chưa cập nhật"}</p>
+
+      <button
+        onClick={handleDirectionsClick}
+        style={{
+          border: "none",
+          background: "#007bff",
+          color: "white",
+          padding: "8px 16px",
+          borderRadius: "4px",
+          cursor: "pointer",
+          fontSize: "14px",
+          fontWeight: "bold",
+          marginTop: "10px",
+          width: "100%",
+        }}
+      >
+        🗺️ Hướng dẫn đường đi
+      </button>
     </div>
   );
 };
 
-// 🎨 Màu theo mã loại đất
-const getColorByLoaiDat = (loai) => {
-  if (!loai) return "#adb5bd";
-
-  const loaiStr = typeof loai === "string" ? loai : String(loai);
-
-  const colors = {
-    CAN: "#e03804ec",
-    ONT: "#ff6b6b",
-    ODT: "#ff8787",
-    CLN: "#69db7c",
-    LUC: "#51cf66",
-    BHK: "#40c057",
-    RSX: "#2f9e44",
-    RPH: "#37b24d",
-    NTS: "#20c997",
-    DGT: "#4dabf7",
-    HCC: "#748ffc",
-    DHT: "#5c7cfa",
-    TMD: "#ffa94d",
-    SKC: "#fab005",
-    SKK: "#f59f00",
-    SKN: "#e67700",
-    BCD: "#adb5bd",
-    NCD: "#868e96",
-    SONG: "#339af0",
-    KNT: "#228be6",
-  };
-
-  const key = loaiStr.trim().toUpperCase();
-  return colors[key] || "#868e96";
-};
-
-// 🧩 Hàm xử lý geometry LINH HOẠT - ưu tiên land_use_details, fallback về geom
+// 🧩 Hàm xử lý geometry LINH HOẠT - XỬ LÝ CẢ 2 TRƯỜNG HỢP
 const processPlotGeometry = (plot) => {
   console.log(`🔄 Processing geometry for plot ${plot.id}:`, {
+    geometrySource: plot.geometrySource,
     has_land_use_details: !!plot.land_use_details,
     land_use_details_count: plot.land_use_details?.length,
     has_geom: !!plot.geom,
+    geom_type: plot.geom ? typeof plot.geom : "null",
   });
 
-  // ✅ ƯU TIÊN 1: Xử lý từ land_use_details nếu có
+  const results = {
+    geometries: [],
+    source: "none",
+    details: [],
+  };
+
+  // ✅ TRƯỜNG HỢP 1: CÓ land_use_details VỚI GEOMETRY
   if (
     plot.land_use_details &&
     Array.isArray(plot.land_use_details) &&
     plot.land_use_details.length > 0
   ) {
-    console.log("🎯 Using land_use_details for geometry");
+    const landUseGeometries = [];
+    const validDetails = [];
 
-    const landUseGeometries = plot.land_use_details
-      .map((detail) => {
-        if (!detail.geometry) {
-          console.warn(`⚠️ No geometry for land use: ${detail.ky_hieu_mdsd}`);
-          return null;
-        }
+    plot.land_use_details.forEach((detail, index) => {
+      let leafletGeom = null;
 
+      // Ưu tiên geometry đã được xử lý (leafletGeometry)
+      if (detail.leafletGeometry) {
+        leafletGeom = detail.leafletGeometry;
+      }
+      // Thử xử lý từ detail.geometry
+      else if (detail.geometry) {
         try {
           const processedGeom = processGeometryData(detail.geometry);
-          const leafletCoordinates = processedGeom
+          leafletGeom = processedGeom
             ? convertGeoJSONToLeaflet(processedGeom)
             : null;
-
-          console.log(`📍 Land Use ${detail.ky_hieu_mdsd}:`, {
-            has_geometry: !!leafletCoordinates,
-            coordinates_count: leafletCoordinates?.[0]?.length || 0,
-          });
-
-          return leafletCoordinates;
         } catch (error) {
           console.error(
-            `❌ Error processing geometry for ${detail.ky_hieu_mdsd}:`,
+            `❌ Error processing detail geometry for ${detail.ky_hieu_mdsd}:`,
             error
           );
-          return null;
         }
-      })
-      .filter(Boolean);
+      }
+
+      if (leafletGeom) {
+        landUseGeometries.push(leafletGeom);
+        validDetails.push({
+          ...detail,
+          color: detail.color || getColorByLoaiDat(detail.ky_hieu_mdsd),
+          leafletGeometry: leafletGeom,
+        });
+      } else {
+        console.warn(
+          `⚠️ No valid geometry for land use detail: ${detail.ky_hieu_mdsd}`
+        );
+      }
+    });
 
     if (landUseGeometries.length > 0) {
       console.log(
-        `✅ Successfully processed ${landUseGeometries.length} land use geometries`
+        `✅ Found ${landUseGeometries.length} valid land use geometries`
       );
-      return {
-        geometries: landUseGeometries,
-        source: "land_use_details",
-        details: plot.land_use_details.map((detail, index) => ({
-          ...detail,
-          color: detail.color || getColorByLoaiDat(detail.ky_hieu_mdsd),
-          leafletGeometry: landUseGeometries[index] || null,
-        })),
-      };
+      results.geometries = landUseGeometries;
+      results.details = validDetails;
+      results.source = "land_use_details";
+      return results;
     }
   }
 
-  // ✅ FALLBACK 2: Xử lý từ geom chính nếu có
+  // ✅ TRƯỜNG HỢP 2: CÓ geom CHÍNH
   if (plot.geom) {
-    console.log("🔄 Using main geom as fallback");
+    console.log("🔄 Processing main geom...");
 
     try {
-      const processedGeom = processGeometryData(plot.geom);
-      const leafletCoordinates = processedGeom
-        ? convertGeoJSONToLeaflet(processedGeom)
-        : null;
+      let leafletCoordinates = plot.geom;
 
-      if (leafletCoordinates) {
-        console.log(`✅ Successfully processed main geom:`, {
-          coordinates_count: leafletCoordinates[0]?.length || 0,
+      // Nếu geom chưa được xử lý (là GeoJSON string hoặc object), chuyển đổi
+      if (
+        typeof plot.geom === "string" ||
+        (plot.geom && plot.geom.type === "FeatureCollection") ||
+        (plot.geom && plot.geom.type === "MultiPolygon")
+      ) {
+        const processedGeom = processGeometryData(plot.geom);
+        leafletCoordinates = processedGeom
+          ? convertGeoJSONToLeaflet(processedGeom)
+          : null;
+      }
+
+      if (leafletCoordinates && Array.isArray(leafletCoordinates)) {
+        console.log(`✅ Successfully processed main geom`, {
+          geometry_count: leafletCoordinates.length,
+          first_coords_sample: leafletCoordinates[0]?.[0]?.[0],
         });
 
-        // Tạo mock land_use_details từ geom chính
-        const mockDetail = {
-          ky_hieu_mdsd: plot.ky_hieu_mdsd || "UNKNOWN",
-          dien_tich: plot.dien_tich || "0",
-          color: getColorByLoaiDat(plot.ky_hieu_mdsd),
-          geometry: plot.geom,
-        };
+        // Tạo land_use_details từ geom chính nếu không có
+        let details = [];
+        if (plot.land_use_details && plot.land_use_details.length > 0) {
+          // Có land_use_details nhưng không có geometry -> dùng geom chính cho tất cả
+          details = plot.land_use_details.map((detail) => ({
+            ...detail,
+            color: detail.color || getColorByLoaiDat(detail.ky_hieu_mdsd),
+            leafletGeometry: leafletCoordinates,
+          }));
+        } else {
+          // Không có land_use_details -> tạo mock detail từ thông tin chính
+          const landTypes = Array.isArray(plot.ky_hieu_mdsd)
+            ? plot.ky_hieu_mdsd
+            : plot.ky_hieu_mdsd
+            ? [plot.ky_hieu_mdsd]
+            : ["UNKNOWN"];
 
-        return {
-          geometries: [leafletCoordinates],
-          source: "main_geom",
-          details: [
-            {
-              ...mockDetail,
-              leafletGeometry: leafletCoordinates,
-            },
-          ],
-        };
+          details = landTypes.map((landType) => ({
+            ky_hieu_mdsd: landType,
+            dien_tich: plot.dien_tich || "0",
+            color: getColorByLoaiDat(landType),
+            geometry: plot.originalGeom || plot.geom,
+            leafletGeometry: leafletCoordinates,
+          }));
+        }
+
+        results.geometries = [leafletCoordinates];
+        results.details = details;
+        results.source = "main_geom";
+        return results;
       }
     } catch (error) {
       console.error("❌ Error processing main geom:", error);
     }
   }
 
-  console.error("❌ No valid geometry found for plot");
+  // ✅ TRƯỜNG HỢP 3: FALLBACK - TẠO GEOMETRY TỪ LAT/LNG
+  if (plot.lat && plot.lng) {
+    console.log("🔄 Creating fallback geometry from lat/lng");
+    try {
+      // Tạo một hình chữ nhật nhỏ xung quanh tọa độ
+      const lat = parseFloat(plot.lat);
+      const lng = parseFloat(plot.lng);
+      const offset = 0.0001; // ~11 meters
+
+      const fallbackGeometry = [
+        [
+          [lng - offset, lat - offset],
+          [lng + offset, lat - offset],
+          [lng + offset, lat + offset],
+          [lng - offset, lat + offset],
+          [lng - offset, lat - offset],
+        ],
+      ];
+
+      const landTypes = Array.isArray(plot.ky_hieu_mdsd)
+        ? plot.ky_hieu_mdsd
+        : plot.ky_hieu_mdsd
+        ? [plot.ky_hieu_mdsd]
+        : ["UNKNOWN"];
+
+      const details = landTypes.map((landType) => ({
+        ky_hieu_mdsd: landType,
+        dien_tich: plot.dien_tich || "0",
+        color: getColorByLoaiDat(landType),
+        leafletGeometry: fallbackGeometry,
+      }));
+
+      results.geometries = [fallbackGeometry];
+      results.details = details;
+      results.source = "fallback";
+      return results;
+    } catch (error) {
+      console.error("❌ Error creating fallback geometry:", error);
+    }
+  }
+
+  console.error("❌ No valid geometry found for plot", {
+    id: plot.id,
+    has_lat_lng: !!(plot.lat && plot.lng),
+  });
   return null;
 };
 
@@ -444,7 +623,7 @@ const LandUsePlanningMap = () => {
     }
   }, [token]);
 
-  // ✅ HÀM: Lấy TẤT CẢ lô đất khi component mount
+  // ✅ HÀM: Lấy TẤT CẢ lô đất khi component mount - XỬ LÝ LINH HOẠT
   const fetchAllPlots = useCallback(async () => {
     try {
       if (!token) {
@@ -465,11 +644,43 @@ const LandUsePlanningMap = () => {
       if (response.data.success) {
         const data = response.data.data
           .map((plot) => {
-            const geometryResult = processPlotGeometry(plot);
-            if (!geometryResult) return null;
+            // Xác định geometry source thông minh
+            let geometrySource = plot.geometrySource;
+
+            if (!geometrySource) {
+              // Nếu có land_use_details với geometry -> ưu tiên
+              if (
+                plot.land_use_details &&
+                plot.land_use_details.length > 0 &&
+                plot.land_use_details.some((detail) => detail.geometry)
+              ) {
+                geometrySource = "land_use_details";
+              }
+              // Nếu có geom chính -> dùng
+              else if (plot.geom) {
+                geometrySource = "main_geom";
+              }
+              // Nếu chỉ có lat/lng -> fallback
+              else if (plot.lat && plot.lng) {
+                geometrySource = "fallback";
+              }
+            }
+
+            const plotWithSource = {
+              ...plot,
+              geometrySource: geometrySource,
+            };
+
+            console.log(`📊 Plot ${plot.id} geometry source:`, geometrySource);
+
+            const geometryResult = processPlotGeometry(plotWithSource);
+            if (!geometryResult) {
+              console.warn(`⚠️ Skipping plot ${plot.id} - no geometry`);
+              return null;
+            }
 
             return {
-              ...plot,
+              ...plotWithSource,
               geom: geometryResult.geometries,
               geometrySource: geometryResult.source,
               land_use_details: geometryResult.details,
@@ -478,9 +689,21 @@ const LandUsePlanningMap = () => {
           })
           .filter(Boolean);
 
+        console.log(`📈 Processed ${data.length} plots with geometry`);
+
+        // Thống kê geometry sources
+        const sourceStats = data.reduce((stats, plot) => {
+          stats[plot.geometrySource] = (stats[plot.geometrySource] || 0) + 1;
+          return stats;
+        }, {});
+
+        console.log("📊 Geometry source statistics:", sourceStats);
+
         setAllPlotsData(data);
-        setLandUseData(data); // ✅ HIỂN THỊ TẤT CẢ LÊN MAP NGAY LẬP TỨC
-        setError(`✅ Đã tải ${data.length} lô đất`);
+        setLandUseData(data);
+        setError(
+          `✅ Đã tải ${data.length} lô đất (${JSON.stringify(sourceStats)})`
+        );
       } else {
         setError("❌ Không có dữ liệu lô đất.");
       }
@@ -513,7 +736,7 @@ const LandUsePlanningMap = () => {
           }
         );
 
-        console.log("📡 Boundary API Response:", response.data);
+        // console.log("📡 Boundary API Response:", response.data);
 
         if (response.data && response.data.success) {
           const boundaryData = response.data.boundary;
@@ -622,12 +845,9 @@ const LandUsePlanningMap = () => {
       if (selectedValue) {
         fetchPhuongBoundary(selectedValue);
 
-        // ✅ Lọc lô đất theo phường được chọn
-        const mappedPhuong = mapPhuongName(selectedValue);
+        // ✅ Lọc lô đất theo phường được chọn - SO SÁNH TRỰC TIẾP
         const filteredPlots = allPlotsData.filter(
-          (plot) =>
-            plot.phuong_xa &&
-            plot.phuong_xa.includes(mappedPhuong.replace("Phuong", "Phường"))
+          (plot) => plot.phuong_xa === selectedValue // ✅ SO SÁNH TRỰC TIẾP
         );
 
         if (filteredPlots.length > 0) {
@@ -652,10 +872,10 @@ const LandUsePlanningMap = () => {
         setLandUseData(allPlotsData);
       }
     },
-    [fetchPhuongBoundary, mapPhuongName, allPlotsData]
+    [fetchPhuongBoundary, allPlotsData] // ✅ LOẠI BỎ mapPhuongName
   );
 
-  // ✅ HÀM TÌM LÔ ĐẤT CỤ THỂ
+  // ✅ HÀM TÌM LÔ ĐẤT CỤ THỂ - DEBUG CHI TIẾT
   const fetchPlotByNumber = useCallback(
     (phuongXa, soTo, soThua) => {
       try {
@@ -667,51 +887,117 @@ const LandUsePlanningMap = () => {
         console.log("🔍 SEARCHING SPECIFIC PLOT:", { phuongXa, soTo, soThua });
 
         // Tìm trong dữ liệu đã có
-        const mappedPhuong = mapPhuongName(phuongXa);
-        const foundPlot = allPlotsData.find(
+        let foundPlot = allPlotsData.find(
           (plot) =>
             plot.so_to == soTo &&
             plot.so_thua == soThua &&
-            plot.phuong_xa &&
-            plot.phuong_xa.includes(mappedPhuong.replace("Phuong", "Phường"))
+            plot.phuong_xa === phuongXa
         );
 
+        if (!foundPlot) {
+          foundPlot = allPlotsData.find(
+            (plot) =>
+              plot.so_to == soTo &&
+              plot.so_thua == soThua &&
+              plot.phuong_xa &&
+              (plot.phuong_xa === phuongXa ||
+                plot.phuong_xa.includes(phuongXa) ||
+                phuongXa.includes(plot.phuong_xa))
+          );
+        }
+
         if (foundPlot) {
-          console.log("🎯 FOUND PLOT IN CACHE:", foundPlot);
+          console.log("🎯 FOUND PLOT:", {
+            id: foundPlot.id,
+            geometrySource: foundPlot.geometrySource,
+            hasGeom: !!foundPlot.geom,
+            geomCount: foundPlot.geom ? foundPlot.geom.length : 0,
+            landUseDetailsCount: foundPlot.land_use_details?.length,
+            landUseDetailsWithGeometry: foundPlot.land_use_details?.filter(
+              (d) => d.leafletGeometry
+            )?.length,
+          });
+
+          // Sử dụng geometry đã được xử lý
+          let plotGeometry = foundPlot.geom;
+
+          if (!plotGeometry || plotGeometry.length === 0) {
+            console.log("🔄 Reprocessing geometry for plot...");
+            const reprocessed = processPlotGeometry(foundPlot);
+            if (reprocessed) {
+              plotGeometry = reprocessed.geometries;
+              foundPlot = {
+                ...foundPlot,
+                geom: plotGeometry,
+                geometrySource: reprocessed.source,
+              };
+            }
+          }
 
           setSelectedPlot(foundPlot);
-          setPlotBoundary(foundPlot.geom);
+          setPlotBoundary(plotGeometry);
 
-          // Cập nhật map center đến lô đất
-          if (foundPlot.geom && foundPlot.geom.length > 0) {
-            const allCoords = foundPlot.geom
-              .flat(3)
-              .filter((coord) => Array.isArray(coord) && coord.length === 2);
+          // Cập nhật map center
+          if (plotGeometry && plotGeometry.length > 0) {
+            const allCoords = [];
+
+            const flattenCoords = (arr) => {
+              if (Array.isArray(arr)) {
+                if (
+                  arr.length === 2 &&
+                  typeof arr[0] === "number" &&
+                  typeof arr[1] === "number"
+                ) {
+                  allCoords.push(arr);
+                } else {
+                  arr.forEach((item) => flattenCoords(item));
+                }
+              }
+            };
+
+            plotGeometry.forEach((geom) => {
+              if (Array.isArray(geom)) {
+                flattenCoords(geom);
+              }
+            });
 
             if (allCoords.length > 0) {
-              const latSum = allCoords.reduce(
-                (sum, coord) => sum + coord[0],
-                0
+              const validCoords = allCoords.filter(
+                (coord) =>
+                  !isNaN(coord[0]) &&
+                  !isNaN(coord[1]) &&
+                  coord[0] !== 0 &&
+                  coord[1] !== 0
               );
-              const lngSum = allCoords.reduce(
-                (sum, coord) => sum + coord[1],
-                0
-              );
 
-              const centerLat = latSum / allCoords.length;
-              const centerLng = lngSum / allCoords.length;
+              if (validCoords.length > 0) {
+                const latSum = validCoords.reduce(
+                  (sum, coord) => sum + coord[0],
+                  0
+                );
+                const lngSum = validCoords.reduce(
+                  (sum, coord) => sum + coord[1],
+                  0
+                );
 
-              console.log("📍 Setting plot center to:", [centerLat, centerLng]);
+                const centerLat = latSum / validCoords.length;
+                const centerLng = lngSum / validCoords.length;
 
-              setSearchCenter([centerLat, centerLng]);
-              setMapCenter([centerLat, centerLng]);
-              setShouldUpdateView(true);
-              setZoomLevel(18); // Zoom sát vào lô đất
+                console.log("📍 Setting plot center to:", [
+                  centerLat,
+                  centerLng,
+                ]);
+
+                setSearchCenter([centerLat, centerLng]);
+                setMapCenter([centerLat, centerLng]);
+                setShouldUpdateView(true);
+                setZoomLevel(18);
+              }
             }
           }
 
           setError(
-            `✅ Đã tìm thấy và zoom đến lô đất: ${foundPlot.so_to}/${foundPlot.so_thua}`
+            `✅ Đã tìm thấy lô đất (${foundPlot.geometrySource}): ${foundPlot.so_to}/${foundPlot.so_thua}`
           );
         } else {
           console.warn("❌ PLOT NOT FOUND IN CACHE");
@@ -727,7 +1013,7 @@ const LandUsePlanningMap = () => {
         setIsLoading(false);
       }
     },
-    [allPlotsData, mapPhuongName]
+    [allPlotsData]
   );
 
   // ✅ HÀM XỬ LÝ TÌM KIẾM
@@ -740,12 +1026,12 @@ const LandUsePlanningMap = () => {
     // Map tên phường từ boundary sang land_plots
     const mappedPhuong = mapPhuongName(selectedPhuong);
 
-    console.log("🔄 Searching plot:", {
-      selected: selectedPhuong,
-      mapped: mappedPhuong,
-      soTo,
-      soThua,
-    });
+    // console.log("🔄 Searching plot:", {
+    //   selected: selectedPhuong,
+    //   mapped: mappedPhuong,
+    //   soTo,
+    //   soThua,
+    // });
 
     // Nếu có đủ thông tin số tờ + số thửa, tìm lô đất cụ thể
     if (soTo && soThua) {
@@ -754,8 +1040,9 @@ const LandUsePlanningMap = () => {
       // Nếu chỉ chọn phường, lọc lô đất theo phường
       const filteredPlots = allPlotsData.filter(
         (plot) =>
-          plot.phuong_xa &&
-          plot.phuong_xa.includes(mappedPhuong.replace("Phuong", "Phường"))
+          // plot.phuong_xa &&
+          // plot.phuong_xa.includes(mappedPhuong.replace("Phuong", "Phường")
+          plot.phuong_xa === selectedPhuong // ✅ SO SÁNH TRỰC TIẾP
       );
 
       if (filteredPlots.length > 0) {
@@ -792,7 +1079,7 @@ const LandUsePlanningMap = () => {
   // ✅ Auto-search khi có đủ thông tin
   useEffect(() => {
     if (selectedPhuong && soTo && soThua) {
-      console.log("🔍 Auto-searching plot:", { selectedPhuong, soTo, soThua });
+      // console.log("🔍 Auto-searching plot:", { selectedPhuong, soTo, soThua });
 
       const autoSearchTimer = setTimeout(() => {
         fetchPlotByNumber(selectedPhuong, soTo, soThua);
@@ -846,11 +1133,11 @@ const LandUsePlanningMap = () => {
   const renderedSelectedPlot = useMemo(() => {
     if (!selectedPlot || !plotBoundary || isLoading) return null;
 
-    console.log(
-      "🎨 Rendering selected plot:",
-      selectedPlot.so_to,
-      selectedPlot.so_thua
-    );
+    // console.log(
+    //   "🎨 Rendering selected plot:",
+    //   selectedPlot.so_to,
+    //   selectedPlot.so_thua
+    // );
 
     return plotBoundary.map((polygonCoords, polyIndex) => (
       <Polygon
@@ -903,7 +1190,7 @@ const LandUsePlanningMap = () => {
     const style = getStyleByZoom(zoomLevel);
 
     if (landUseData.length > 0) {
-      console.log(`🎨 Rendering ${landUseData.length} plots`);
+      // console.log(`🎨 Rendering ${landUseData.length} plots`);
 
       return landUseData
         .flatMap((plot, plotIndex) => {
@@ -1031,7 +1318,7 @@ const LandUsePlanningMap = () => {
       </div>
 
       {/* Hiển thị thông báo */}
-      {error && (
+      {/* {error && (
         <div
           className={`error-message ${
             error.includes("✅")
@@ -1043,7 +1330,7 @@ const LandUsePlanningMap = () => {
         >
           {error}
         </div>
-      )}
+      )} */}
 
       <div style={containerStyle}>
         <LoadingOverlay isLoading={isLoading} />
@@ -1053,7 +1340,7 @@ const LandUsePlanningMap = () => {
           style={containerStyle}
           zoomControl={false}
           maxZoom={22}
-          minZoom={20}
+          minZoom={14}
           zoomSnap={0.5}
           zoomDelta={0.5}
         >
@@ -1078,6 +1365,80 @@ const LandUsePlanningMap = () => {
                 minZoom={8}
                 noWrap={true}
                 maxNativeZoom={19}
+              />
+            </LayersControl.BaseLayer>
+            <LayersControl.BaseLayer name="🌙 Tối (Dark)">
+              <TileLayer
+                url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+                maxZoom={22}
+                minZoom={8}
+                noWrap={true}
+                maxNativeZoom={19}
+              />
+            </LayersControl.BaseLayer>
+
+            <LayersControl.BaseLayer name="🎨 Màu sắc">
+              <TileLayer
+                url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+                maxZoom={22}
+                minZoom={8}
+                noWrap={true}
+                maxNativeZoom={19}
+              />
+            </LayersControl.BaseLayer>
+
+            <LayersControl.BaseLayer name="⚪ Trắng đơn giản">
+              <TileLayer
+                url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+                maxZoom={22}
+                minZoom={8}
+              />
+            </LayersControl.BaseLayer>
+
+            <LayersControl.BaseLayer name="🌍 Google Satellite">
+              <TileLayer
+                url="https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
+                attribution="&copy; Google"
+                maxZoom={22}
+                minZoom={8}
+              />
+            </LayersControl.BaseLayer>
+
+            {/* Overlay layers (có thể bật/tắt cùng lúc với base layer) */}
+            <LayersControl.Overlay checked name="🏘️ Ranh giới phường">
+              {/* Thêm ranh giới phường ở đây nếu muốn */}
+            </LayersControl.Overlay>
+
+            <LayersControl.Overlay checked name="📍 Lô đất">
+              {/* Thêm lô đất ở đây nếu muốn */}
+            </LayersControl.Overlay>
+
+            <LayersControl.BaseLayer name="🌆 Google Hybrid">
+              <TileLayer
+                url="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
+                attribution="&copy; Google"
+                maxZoom={22}
+                minZoom={8}
+              />
+            </LayersControl.BaseLayer>
+
+            <LayersControl.BaseLayer
+              name="🌍 Google Satellite"
+              url="https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
+              attribution="&copy; Google"
+              maxZoom={22}
+              minZoom={8}
+            />
+
+            <LayersControl.BaseLayer name="🌍 Google Terrain">
+              <TileLayer
+                url="https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}"
+                attribution="&copy; Google"
+                maxZoom={22}
+                minZoom={8}
               />
             </LayersControl.BaseLayer>
           </LayersControl>

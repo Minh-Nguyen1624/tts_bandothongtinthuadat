@@ -59,7 +59,7 @@ const OverLapHandler = ({ soTo, soThua, phuongXa, onOverlapData }) => {
         }
       );
 
-      console.log("✅ Overlap group response:", response.data);
+      // console.log("✅ Overlap group response:", response.data);
 
       if (response.data.success) {
         setOverlapGroup(response.data);
@@ -184,7 +184,7 @@ const OverLapHandler = ({ soTo, soThua, phuongXa, onOverlapData }) => {
             // ✅ LUÔN tính màu từ ky_hieu_mdsd
             const landTypeColor = getColorByLandType(subGeom.ky_hieu_mdsd);
 
-            console.log(`📊 ${subGeom.ky_hieu_mdsd}: ${landTypeColor}`);
+            // console.log(`📊 ${subGeom.ky_hieu_mdsd}: ${landTypeColor}`);
 
             return (
               <div

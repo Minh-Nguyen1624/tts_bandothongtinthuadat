@@ -12,7 +12,7 @@ const DataTable = ({
   tableHeaders,
   onRetry,
 }) => {
-  console.log("DataTable data:", data);
+  // console.log("DataTable data:", data);
 
   if (loading) {
     return (

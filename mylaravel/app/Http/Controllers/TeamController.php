@@ -3,48 +3,78 @@
 namespace App\Http\Controllers;
 
 use App\Models\Teams;
+use App\Models\Unit;
+use App\Http\Resources\TeamResource;
 use Illuminate\Http\Request;
 
 class TeamController extends Controller
 {
     public function index()
     {
-        return Teams::with('unit')->get();
+        $teams = Teams::with('unit')->get();
+        return TeamResource::collection($teams);
     }
 
     public function store(Request $request)
     {
         $validated = $request->validate([
             'name' => 'required|string',
-            'unit_id' => 'required|integer',
+            'unit_code' => 'required|string|exists:units,code',
             'description' => 'nullable|string',
             'status' => 'nullable|in:active,inactive',
         ]);
 
-        $teams = Teams::create($validated);
-        $teams = Teams::with('unit')->find($teams->id);
-        return response()->json($teams, 201);
+        // Tìm unit_id từ unit_code
+        $unit = Unit::where('code', $validated['unit_code'])->firstOrFail();
+        
+        $team = Teams::create([
+            'name' => $validated['name'],
+            'code' => $validated['code'],
+            'unit_id' => $unit->id,
+            'description' => $validated['description'],
+            'status' => $validated['status'] ?? 'active'
+        ]);
+
+        $team->load('unit');
+        
+        return response()->json(new TeamResource($team), 201);
     }
 
-    public function show(string $id){
-        return Teams::with('unit')->findOrFail($id);
+    public function show(string $id)
+    {
+        $team = Teams::with('unit')->findOrFail($id);
+        return new TeamResource($team);
     }
 
-    public function update(Request $request, string $id){
-        $teams = Teams::findOrFail($id);
-         $validated = $request->validate([
+    public function update(Request $request, string $id)
+    {
+        $team = Teams::findOrFail($id);
+        $validated = $request->validate([
             'name' => 'required|string',
-            'unit_id' => 'required|integer',
+             'code' => 'nullable|string|unique:teams,code,' . $id . '|max:50',
+            'unit_code' => 'required|string|exists:units,code',
             'description' => 'nullable|string',
             'status' => 'nullable|in:active,inactive',
         ]);
 
-        $teams-> update($validated);
-        $teams = Teams::with('unit')->find($teams->id);
-        return response()->json($teams, 200);
+        // Tìm unit_id từ unit_code
+        $unit = Unit::where('code', $validated['unit_code'])->firstOrFail();
+        
+        $team->update([
+            'name' => $validated['name'],
+            'code' => $validated['code'],
+            'unit_id' => $unit->id,
+            'description' => $validated['description'],
+            'status' => $validated['status'] ?? $team->status
+        ]);
+
+        $team->load('unit');
+        
+        return response()->json(new TeamResource($team), 200);
     }
 
-    public function destroy(string $id){
+    public function destroy(string $id)
+    {
         Teams::destroy($id);
         return response()->json(null, 204);
     }

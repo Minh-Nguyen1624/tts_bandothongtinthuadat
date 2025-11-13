@@ -52,12 +52,12 @@ const LandPlotMapModal = ({ plot, onClose }) => {
   // Parse EWKB hex string (Browser-compatible version)
   const parseEWKB = (ewkbHex) => {
     if (!ewkbHex || typeof ewkbHex !== "string") {
-      console.log("❌ Invalid or missing EWKB data");
+      // console.log("❌ Invalid or missing EWKB data");
       return null;
     }
 
     try {
-      console.log("🔄 Starting to parse EWKB...");
+      // console.log("🔄 Starting to parse EWKB...");
       // Convert hex string to Uint8Array
       const byteArray = new Uint8Array(
         ewkbHex.match(/.{1,2}/g).map((byte) => parseInt(byte, 16))
@@ -110,7 +110,7 @@ const LandPlotMapModal = ({ plot, onClose }) => {
         },
       };
 
-      console.log("✅ Parsed EWKB successfully:", result);
+      // console.log("✅ Parsed EWKB successfully:", result);
       return result;
     } catch (error) {
       console.error("❌ Error parsing EWKB:", error);
@@ -121,26 +121,26 @@ const LandPlotMapModal = ({ plot, onClose }) => {
   // Parse geometry dynamically without hardcoding
   const parseGeometry = (ewkbHex) => {
     if (!ewkbHex) {
-      console.log("❌ Không có EWKB data");
+      // console.log("❌ Không có EWKB data");
       return null;
     }
 
     try {
-      console.log("🔄 Bắt đầu parse geometry...");
+      // console.log("🔄 Bắt đầu parse geometry...");
 
       // Lấy center từ EWKB nếu có, hoặc từ plot.lat/plot.lng
       let centerLat, centerLng;
       if (plot.lat && plot.lng) {
         centerLat = parseFloat(plot.lat);
         centerLng = parseFloat(plot.lng);
-        console.log("🎯 Sử dụng tọa độ từ plot:", [centerLat, centerLng]);
+        // console.log("🎯 Sử dụng tọa độ từ plot:", [centerLat, centerLng]);
       } else if (parsedGeometry?.center) {
         [centerLat, centerLng] = parsedGeometry.center;
-        console.log("🎯 Sử dụng center từ EWKB:", [centerLat, centerLng]);
+        // console.log("🎯 Sử dụng center từ EWKB:", [centerLat, centerLng]);
       } else {
         centerLat = FALLBACK_COORDINATES.lat;
         centerLng = FALLBACK_COORDINATES.lng;
-        console.log("🔄 Sử dụng tọa độ dự phòng:", [centerLat, centerLng]);
+        // console.log("🔄 Sử dụng tọa độ dự phòng:", [centerLat, centerLng]);
       }
 
       // Tính offset động (ví dụ: 0.001 ~ 100m, không hardcode giá trị cố định)
@@ -170,7 +170,7 @@ const LandPlotMapModal = ({ plot, onClose }) => {
         },
       };
 
-      console.log("✅ Parse geometry thành công:", result);
+      // console.log("✅ Parse geometry thành công:", result);
       return result;
     } catch (error) {
       console.error("❌ Lỗi parse geometry:", error);
@@ -181,7 +181,7 @@ const LandPlotMapModal = ({ plot, onClose }) => {
   // Calculate center from geometry
   const calculateCenterFromGeometry = (geometryData) => {
     if (geometryData?.center) {
-      console.log("🎯 Using center from geometry:", geometryData.center);
+      // console.log("🎯 Using center from geometry:", geometryData.center);
       return geometryData.center;
     }
 
@@ -195,12 +195,12 @@ const LandPlotMapModal = ({ plot, onClose }) => {
           sumLng += lng;
         });
         const center = [sumLat / allPoints.length, sumLng / allPoints.length];
-        console.log("🎯 Calculated center from points:", center);
+        // console.log("🎯 Calculated center from points:", center);
         return center;
       }
     }
 
-    console.log("🔄 Using fallback coordinates");
+    // console.log("🔄 Using fallback coordinates");
     return [FALLBACK_COORDINATES.lat, FALLBACK_COORDINATES.lng];
   };
 
@@ -222,7 +222,7 @@ const LandPlotMapModal = ({ plot, onClose }) => {
           lng: longitude,
         });
         setIsGettingLocation(false);
-        console.log("📍 Current location:", { lat: latitude, lng: longitude });
+        // console.log("📍 Current location:", { lat: latitude, lng: longitude });
       },
       (error) => {
         console.error("Lỗi khi lấy vị trí:", error);
@@ -241,7 +241,7 @@ const LandPlotMapModal = ({ plot, onClose }) => {
 
   // Open Google Maps with directions
   const openGoogleMapsDirections = () => {
-    console.log("🗺️ Opening Google Maps...", { plot, parsedGeometry });
+    // console.log("🗺️ Opening Google Maps...", { plot, parsedGeometry });
 
     let destinationLat,
       destinationLng,
@@ -260,11 +260,11 @@ const LandPlotMapModal = ({ plot, onClose }) => {
       source = "fallback";
     }
 
-    console.log("🎯 Destination coordinates:", {
-      destinationLat,
-      destinationLng,
-      source,
-    });
+    // console.log("🎯 Destination coordinates:", {
+    //   destinationLat,
+    //   destinationLng,
+    //   source,
+    // });
 
     if (isNaN(destinationLat) || isNaN(destinationLng)) {
       console.error("❌ Invalid coordinates:", {
@@ -287,26 +287,26 @@ const LandPlotMapModal = ({ plot, onClose }) => {
       googleMapsUrl += `&origin=${currentLocation.lat},${currentLocation.lng}`;
     }
 
-    console.log("🔗 Google Maps URL:", googleMapsUrl);
+    // console.log("🔗 Google Maps URL:", googleMapsUrl);
     window.open(googleMapsUrl, "_blank", "noopener,noreferrer");
   };
 
   // Parse geometry when plot changes
   useEffect(() => {
     if (plot) {
-      console.log("📝 Plot data received:", plot);
+      // console.log("📝 Plot data received:", plot);
 
       const issues = validatePlotData(plot);
-      console.log("⚠️ Data issues found:", issues);
+      // console.log("⚠️ Data issues found:", issues);
       setDataIssues(issues);
 
       if (plot.geom) {
-        console.log("🔄 Parsing geometry...");
+        // console.log("🔄 Parsing geometry...");
         const geometryData = parseGeometry(plot.geom); // Sử dụng hàm parseGeometry thay vì parseEWKB
-        console.log("📐 Parsed geometry:", geometryData);
+        // console.log("📐 Parsed geometry:", geometryData);
         setParsedGeometry(geometryData);
       } else {
-        console.log("ℹ️ Không có geometry data");
+        // console.log("ℹ️ Không có geometry data");
         setParsedGeometry(null);
       }
 
@@ -315,7 +315,7 @@ const LandPlotMapModal = ({ plot, onClose }) => {
   }, [plot]);
 
   if (!plot) {
-    console.log("❌ No plot data");
+    // console.log("❌ No plot data");
     return null;
   }
 
@@ -344,7 +344,7 @@ const LandPlotMapModal = ({ plot, onClose }) => {
       };
     }
 
-    console.log("📍 Display coordinates:", { ...coords, source });
+    // console.log("📍 Display coordinates:", { ...coords, source });
     return coords;
   };
 

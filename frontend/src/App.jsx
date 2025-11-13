@@ -12,6 +12,7 @@ import Header from "./Components/Header.jsx";
 import LandPlotManagement from "./Components/LandPlotManagement.jsx";
 import PlotList from "./Components/PlotList.jsx";
 import LandUsePlanningMap from "./Components/LandUsePlanningMap.jsx";
+// import LandUsePlanningMap from "../../frontend/src/Components/map/LandUsePlanningMap.jsx";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 

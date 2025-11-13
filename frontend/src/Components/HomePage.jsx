@@ -35,7 +35,7 @@ const HomePage = () => {
 
       // Kiểm tra cache trước
       if (dataCache[type]) {
-        console.log(`Using cached data for ${type}:`, dataCache[type]);
+        // console.log(`Using cached data for ${type}:`, dataCache[type]);
         setData(dataCache[type]);
         return;
       }
@@ -44,27 +44,27 @@ const HomePage = () => {
       setError(null);
 
       try {
-        console.log(`Fetching data for ${type}...`);
+        // console.log(`Fetching data for ${type}...`);
         const response = await axios.get(`${API_URL}/api/${type}`, {
           headers: { Authorization: `Bearer ${token}` },
           timeout: 10000,
         });
 
-        console.log(`Response for ${type}:`, response.data);
+        // console.log(`Response for ${type}:`, response.data);
 
         // THÊM DEBUG: Kiểm tra cấu trúc dữ liệu
         const responseData = response.data;
-        console.log(`Response structure for ${type}:`, {
-          hasData: !!responseData.data,
-          dataIsArray: Array.isArray(responseData.data),
-          dataLength: Array.isArray(responseData.data)
-            ? responseData.data.length
-            : "N/A",
-          fullResponse: responseData,
-        });
+        // console.log(`Response structure for ${type}:`, {
+        //   hasData: !!responseData.data,
+        //   dataIsArray: Array.isArray(responseData.data),
+        //   dataLength: Array.isArray(responseData.data)
+        //     ? responseData.data.length
+        //     : "N/A",
+        //   fullResponse: responseData,
+        // });
 
         const newData = responseData?.data ?? responseData ?? [];
-        console.log(`Processed data for ${type}:`, newData);
+        // console.log(`Processed data for ${type}:`, newData);
 
         setData(newData);
 
@@ -85,7 +85,7 @@ const HomePage = () => {
 
   // Effect để fetch data khi type thay đổi
   useEffect(() => {
-    console.log(`Current type changed to: ${currentType}`);
+    // console.log(`Current type changed to: ${currentType}`);
     fetchData(currentType);
   }, [currentType, fetchData]);
 
@@ -114,7 +114,7 @@ const HomePage = () => {
 
   // Xử lý thay đổi tab
   const handleTabChange = useCallback((tab) => {
-    console.log(`Tab changed to: ${tab}`);
+    // console.log(`Tab changed to: ${tab}`);
     setCurrentType(tab);
   }, []);
 
@@ -132,13 +132,13 @@ const HomePage = () => {
     };
 
     const headers = headersMap[currentType] || headersMap.land_plots;
-    console.log(`Headers for ${currentType}:`, headers);
+    // console.log(`Headers for ${currentType}:`, headers);
     return headers;
   }, [currentType]);
 
   // Memoize số lượng items
   const itemsCount = useMemo(() => {
-    console.log(`Data count for ${currentType}:`, data.length);
+    // console.log(`Data count for ${currentType}:`, data.length);
     return data.length;
   }, [data, currentType]);
 

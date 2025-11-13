@@ -12,7 +12,7 @@ class Teams extends Model{
     use HasFactory;
     
     // Các trường được phép gán hàng loạt (mass assignment).
-    protected $fillable = ['name', 'unit_id','description','status'];
+    protected $fillable = ['name', 'code', 'unit_id','description','status'];
 
     // Một Team thuộc về 1 Unit
     public function unit(){

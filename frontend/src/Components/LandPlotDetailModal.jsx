@@ -27,7 +27,7 @@ const LandPLotDetailModal = ({
   error,
   setError,
 }) => {
-  console.log("landPlotDetail", landPlotDetail);
+  // console.log("landPlotDetail", landPlotDetail);
   if (!show) return null;
 
   const handleOverlayClick = useCallback(

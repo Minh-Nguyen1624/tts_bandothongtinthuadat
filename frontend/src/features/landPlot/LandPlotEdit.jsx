@@ -342,7 +342,7 @@ const LandPlotEdit = React.memo(
             color: "#868e96", // Mặc định màu
           },
         ];
-        console.log("🔍 Added new detail:", newDetails); // Debug
+        // console.log("🔍 Added new detail:", newDetails); // Debug
         return { ...prev, land_use_details: newDetails };
       });
     }, [
@@ -404,10 +404,10 @@ const LandPlotEdit = React.memo(
                 parsedGeometry = geometry; // Giữ nguyên string nếu lỗi
               }
             }
-            console.log(
-              `🔍 Geometry updated at index ${index}:`,
-              parsedGeometry
-            ); // Debug
+            // console.log(
+            //   `🔍 Geometry updated at index ${index}:`,
+            //   parsedGeometry
+            // ); // Debug
             return { ...detail, geometry: parsedGeometry };
           }
           return detail;
@@ -586,25 +586,25 @@ const LandPlotEdit = React.memo(
                   }
                 }
 
-                console.log(`🔍 [DETAIL PAYLOAD] ${detail.ky_hieu_mdsd}:`, {
-                  dien_tich: detailPayload.dien_tich,
-                  hasGeometry: !!detailPayload.geometry,
-                  hasColor: !!detailPayload.color,
-                });
+                // console.log(`🔍 [DETAIL PAYLOAD] ${detail.ky_hieu_mdsd}:`, {
+                //   dien_tich: detailPayload.dien_tich,
+                //   hasGeometry: !!detailPayload.geometry,
+                //   hasColor: !!detailPayload.color,
+                // });
 
                 return detailPayload;
               }
             );
 
-            console.log(
-              `✅ Sẽ gửi ${payload.land_use_details.length} chi tiết:`,
-              payload.land_use_details.map(
-                (d) => `${d.ky_hieu_mdsd} (geom: ${!!d.geometry})`
-              )
-            );
+            // console.log(
+            //   `✅ Sẽ gửi ${payload.land_use_details.length} chi tiết:`,
+            //   payload.land_use_details.map(
+            //     (d) => `${d.ky_hieu_mdsd} (geom: ${!!d.geometry})`
+            //   )
+            // );
           }
 
-          console.log("📤 Final payload gửi lên server:", payload);
+          // console.log("📤 Final payload gửi lên server:", payload);
 
           const response = await landPlotApi.updateLandPlot(
             formData.id,
@@ -653,7 +653,7 @@ const LandPlotEdit = React.memo(
     const handleSubmit = useCallback(
       async (e) => {
         e.preventDefault();
-        console.log("🔍 handleSubmit triggered", { formData, errors });
+        // console.log("🔍 handleSubmit triggered", { formData, errors });
 
         const allTouched = Object.keys(formData).reduce((acc, key) => {
           acc[key] = true;

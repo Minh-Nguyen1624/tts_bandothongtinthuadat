@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::create('teams', function (Blueprint $table) {
             $table->id();
             $table->string('name');
+            $table->string('code')->unique();
             $table->foreignId('unit_id')->constrained()->onDelete('cascade'); 
             $table->string('description')->nullable(); // ví dụ mô tả
             $table->enum('status', ['active','inactive'])->default('active'); // trạng thái team

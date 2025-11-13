@@ -79,7 +79,7 @@ const LandPlotManagement = () => {
     setSuccess(null);
 
     try {
-      console.log("Fetching land plots...");
+      // console.log("Fetching land plots...");
       const response = await axios.get(`${API_URL}/api/land_plots`, {
         headers: { Authorization: `Bearer ${token}` },
         signal,
@@ -87,25 +87,25 @@ const LandPlotManagement = () => {
 
       const data = processApiResponse(response.data);
 
-      console.log("check data", data);
+      // console.log("check data", data);
 
       // Debug chi tiết về land_use_details và geometry
-      data.forEach((plot, index) => {
-        console.log(`Plot ${index} (ID: ${plot.id}):`, {
-          land_use_details: plot.land_use_details,
-          length: plot.land_use_details?.length,
-          isArray: Array.isArray(plot.land_use_details),
-          detailsWithGeometry: plot.land_use_details?.map((detail) => ({
-            id: detail.id,
-            ky_hieu_mdsd: detail.ky_hieu_mdsd,
-            hasGeometry: !!detail.geometry,
-            geometryType: detail.geometry ? typeof detail.geometry : "null",
-            geometry: detail.geometry,
-          })),
-        });
-      });
+      // data.forEach((plot, index) => {
+      //   console.log(`Plot ${index} (ID: ${plot.id}):`, {
+      //     land_use_details: plot.land_use_details,
+      //     length: plot.land_use_details?.length,
+      //     isArray: Array.isArray(plot.land_use_details),
+      //     detailsWithGeometry: plot.land_use_details?.map((detail) => ({
+      //       id: detail.id,
+      //       ky_hieu_mdsd: detail.ky_hieu_mdsd,
+      //       hasGeometry: !!detail.geometry,
+      //       geometryType: detail.geometry ? typeof detail.geometry : "null",
+      //       geometry: detail.geometry,
+      //     })),
+      //   });
+      // });
 
-      console.log("Fetched land plots:", data);
+      // console.log("Fetched land plots:", data);
       setLandPlots(data);
       setLastUpdated(new Date());
       setError(null);
@@ -268,7 +268,7 @@ const LandPlotManagement = () => {
           }
         );
 
-        console.log("Add response:", response.data);
+        // console.log("Add response:", response.data);
 
         if (response.data.success === false) {
           throw new Error(response.data.message);
@@ -324,7 +324,7 @@ const LandPlotManagement = () => {
       // setSearchError(null);
 
       try {
-        console.log("Searching for:", query);
+        // console.log("Searching for:", query);
 
         const params = { query };
 
@@ -342,7 +342,7 @@ const LandPlotManagement = () => {
           timeout: 10000, // 10 seconds timeout
         });
 
-        console.log("Search Response:", response.data);
+        // console.log("Search Response:", response.data);
 
         if (response.data.success === false) {
           throw new Error(response.data.message || "Search failed");
@@ -357,7 +357,7 @@ const LandPlotManagement = () => {
 
           // Retry logic (max 2 retries)
           if (retryCount < 2) {
-            console.log(`Retrying search... attempt ${retryCount + 1}`);
+            // console.log(`Retrying search... attempt ${retryCount + 1}`);
             setTimeout(() => {
               searchLandPlots(query, retryCount + 1);
             }, 1000);
@@ -372,7 +372,7 @@ const LandPlotManagement = () => {
           setError(`Lỗi tìm kiếm: ${errorMessage}`);
 
           // Fallback: sử dụng client-side filtering với dữ liệu hiện có
-          console.log("Using client-side filtering as fallback");
+          // console.log("Using client-side filtering as fallback");
         }
       } finally {
         setSearching(false);
@@ -395,7 +395,7 @@ const LandPlotManagement = () => {
   // };
   // Xử lý response API thống nhất
   const processApiResponse = (responseData) => {
-    console.log("🔄 Processing API response...");
+    // console.log("🔄 Processing API response...");
 
     let data = [];
 
@@ -411,10 +411,10 @@ const LandPlotManagement = () => {
 
     // ✅ Xử lý land_use_details: Chuyển từ Collection/Object sang Array
     const processedData = data.map((plot) => {
-      console.log(`📊 Processing plot ${plot.id}:`, {
-        land_use_details: plot.land_use_details,
-        type: typeof plot.land_use_details,
-      });
+      // console.log(`📊 Processing plot ${plot.id}:`, {
+      //   land_use_details: plot.land_use_details,
+      //   type: typeof plot.land_use_details,
+      // });
 
       let landUseDetails = [];
 
@@ -437,10 +437,10 @@ const LandPlotManagement = () => {
         }
       }
 
-      console.log(
-        `✅ Processed plot ${plot.id} land_use_details:`,
-        landUseDetails
-      );
+      // console.log(
+      //   `✅ Processed plot ${plot.id} land_use_details:`,
+      //   landUseDetails
+      // );
 
       return {
         ...plot,
@@ -448,7 +448,7 @@ const LandPlotManagement = () => {
       };
     });
 
-    console.log("✅ Final processed data:", processedData);
+    // console.log("✅ Final processed data:", processedData);
     return processedData;
   };
 

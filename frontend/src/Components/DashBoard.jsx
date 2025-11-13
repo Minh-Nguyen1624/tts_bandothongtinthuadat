@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import "../css/ModalForm.css";
 import "../css/Dashboard.css";
-import { FaPen, FaTrash } from "react-icons/fa";
+import { FaPen, FaTrash, FaEye, FaEyeSlash } from "react-icons/fa";
 
 const API_URL = "http://127.0.0.1:8000";
 
@@ -21,7 +22,13 @@ export default function Dashboard() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [selectedDetailItem, setSelectedDetailItem] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [error, setError] = useState(null);
+
   const token = localStorage.getItem("token");
+  const navigate = useNavigate();
 
   /* ---------- HELPERS ---------- */
   const getFormFields = (type, mode = "edit") => {
@@ -31,12 +38,6 @@ export default function Dashboard() {
         { key: "last_name", label: "Tên", required: true },
         { key: "name", label: "Tên đầy đủ" },
         { key: "email", label: "Email", type: "email", required: true },
-        // {
-        //   key: "password",
-        //   label: "Mật khẩu",
-        //   type: "password",
-        //   required: mode === "add",
-        // },
         { key: "phone", label: "Số điện thoại", type: "tel" },
         { key: "date_of_birth", label: "Ngày sinh", type: "date" },
         { key: "gender", label: "Giới tính" },
@@ -44,9 +45,18 @@ export default function Dashboard() {
         { key: "avatar", label: "Ảnh đại diện" },
         { key: "role", label: "Vai trò", required: true },
         { key: "status", label: "Trạng thái" },
-        { key: "unit_id", label: "ID đơn vị" },
-        { key: "team_id", label: "ID nhóm" },
+        { key: "unit_code", label: "Mã đơn vị" },
+        { key: "team_code", label: "Mã nhóm" },
       ];
+
+      allFields.splice(4, 0, {
+        key: "password",
+        label: mode === "add" ? "Mật khẩu" : "Mật khẩu",
+        type: "password",
+        required: mode === "add",
+        disabled: mode === "edit",
+      });
+
       return allFields;
     } else if (type === "units") {
       return [
@@ -57,16 +67,13 @@ export default function Dashboard() {
     } else if (type === "teams") {
       return [
         { key: "name", label: "Tên", required: true },
-        { key: "unit_id", label: "ID đơn vị", required: true },
+        { key: "code", label: "Mã nhóm", required: true },
+        { key: "unit_code", label: "Mã đơn vị", required: true },
         { key: "description", label: "Mô tả" },
         { key: "status", label: "Trạng thái", required: true },
       ];
     }
     return [];
-  };
-
-  const togglePasswordVisibility = () => {
-    setShowPassword(!showPassword);
   };
 
   const normalizeItem = (raw, type) => {
@@ -82,7 +89,11 @@ export default function Dashboard() {
         email: obj.email ?? "",
         role: obj.role ?? "",
         unit: obj.unit ?? null,
+        unit_id: obj.unit_id ?? (obj.unit ? obj.unit.id : null),
+        unit_code: obj.unit?.code ?? obj.unit_code ?? "",
         team: obj.team ?? null,
+        team_id: obj.team_id ?? (obj.team ? obj.team.id : null),
+        team_code: obj.team?.code ?? obj.team_code ?? "",
         avatar: obj.avatar ?? "",
         status: obj.status ?? "",
         date_of_birth: obj.date_of_birth ?? "",
@@ -92,6 +103,11 @@ export default function Dashboard() {
         email_verified_at: obj.email_verified_at ?? null,
         created_at: obj.created_at ?? null,
         updated_at: obj.updated_at ?? null,
+        // password: obj.password ?? "", // LẤY MẬT KHẨU THẬT TỪ DB (hashed)
+        password:
+          obj.password && obj.password.trim() !== ""
+            ? obj.password
+            : "••••••••", // LẤY MẬT KHẨU THẬT TỪ DB (hashed)
       };
     } else if (type === "units") {
       return {
@@ -107,8 +123,10 @@ export default function Dashboard() {
       return {
         id: obj.id,
         name: obj.name ?? "",
+        code: obj.code ?? "",
         unit: obj.unit ?? null,
         unit_id: obj.unit_id ?? (obj.unit ? obj.unit.id : null),
+        unit_code: obj.unit?.code ?? obj.unit_code ?? "",
         description: obj.description ?? "",
         status: obj.status ?? "",
         created_at: obj.created_at ?? null,
@@ -123,113 +141,129 @@ export default function Dashboard() {
     return list.map((i) => normalizeItem(i, type));
   };
 
-  const buildPayloadForType = (type, form) => {
-    const fields = getFormFields(type, addMode ? "add" : "edit").map(
-      (f) => f.key
-    );
+  const buildPayloadForType = (type, form, mode) => {
+    const fields = getFormFields(type, mode).map((f) => f.key);
     const payload = {};
+
     fields.forEach((k) => {
       const val = form[k];
-      if (val === undefined) return;
-      if (val === null) {
-        payload[k] = null;
+      if (val === undefined || val === null || val === "") return;
+
+      // BỎ HOÀN TOÀN password khi edit
+      if (type === "users" && k === "password" && mode === "edit") return;
+
+      if (type === "users" && (k === "unit_code" || k === "team_code")) {
+        if (val && val.trim() !== "") payload[k] = val;
         return;
       }
-      if (typeof val === "object") {
-        if (val.id !== undefined) {
-          if (k === "unit" || k === "team") {
-            payload[`${k}_id`] = val.id;
-          }
-        }
+
+      if (type === "teams" && k === "unit_code") {
+        payload[k] = val;
         return;
       }
+
       payload[k] = val;
     });
 
-    // if (!addMode && payload.password === "") delete payload.password;
     return payload;
   };
 
   /* ---------- API ---------- */
-  const fetchGetData = async () => {
-    if (!token) {
-      console.warn("No token found. Please login first.");
-      return;
-    }
+  const fetchGetData = async (currentType) => {
+    if (!token) return;
+
     setLoading(true);
+    setError(null);
+
     try {
-      const response = await axios.get(`${API_URL}/api/${types}`, {
+      const response = await axios.get(`${API_URL}/api/${currentType}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const list = Array.isArray(response.data)
-        ? response.data
-        : response.data?.data ?? [];
-      setData(normalizeList(list, types));
+
+      if (currentType === types) {
+        const list = Array.isArray(response.data)
+          ? response.data
+          : response.data?.data ?? [];
+        setData(normalizeList(list, currentType));
+      }
     } catch (error) {
-      console.error("Fetch error:", error.response?.data || error.message);
-      setData([]);
+      if (currentType === types) {
+        setError(
+          "Lỗi tải dữ liệu: " + (error.response?.data?.message || error.message)
+        );
+        setData([]);
+      }
     } finally {
-      setLoading(false);
+      if (currentType === types) setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchGetData();
-    setEditingItem(null);
-    setAddMode(false);
-    setFormData({});
-    setShowPassword(false);
-  }, [types]);
+    fetchGetData(types);
+  }, [types, token]);
+
+  const handleGetDetail = useCallback(
+    async (item) => {
+      setDetailLoading(true);
+      setShowDetailModal(true);
+      setSelectedDetailItem(null);
+      setError(null);
+
+      if (!token) {
+        setError("Vui lòng đăng nhập trước");
+        setDetailLoading(false);
+        return;
+      }
+
+      try {
+        const response = await axios.get(`${API_URL}/api/${types}/${item.id}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        const detailData = response.data?.data || response.data;
+        setSelectedDetailItem(normalizeItem(detailData, types));
+      } catch (error) {
+        setError("Không thể tải chi tiết.");
+      } finally {
+        setDetailLoading(false);
+      }
+    },
+    [token, types]
+  );
 
   const handleAddSubmit = async () => {
-    if (!token) {
-      alert("Vui lòng đăng nhập trước");
-      return;
-    }
+    if (!token) return alert("Vui lòng đăng nhập");
 
-    // Validate required fields
-    const requiredFields = getFormFields(types, "add").filter(
-      (f) => f.required
-    );
-    const missingFields = requiredFields.filter(
+    const required = getFormFields(types, "add").filter((f) => f.required);
+    const missing = required.filter(
       (f) => !formData[f.key] || formData[f.key].toString().trim() === ""
     );
 
-    if (missingFields.length > 0) {
-      alert(
-        `Vui lòng điền các trường bắt buộc: ${missingFields
-          .map((f) => f.label)
-          .join(", ")}`
-      );
+    if (missing.length > 0) {
+      alert(`Thiếu: ${missing.map((f) => f.label).join(", ")}`);
       return;
     }
 
     setLoading(true);
     try {
-      const payload = buildPayloadForType(types, formData);
-      const response = await axios.post(`${API_URL}/api/${types}`, payload, {
+      const payload = buildPayloadForType(types, formData, "add");
+      const res = await axios.post(`${API_URL}/api/${types}`, payload, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const newItemRaw = response.data?.data ?? response.data;
-      const newItem = normalizeItem(newItemRaw, types);
+
+      const newItem = normalizeItem(res.data?.data ?? res.data, types);
       setData((prev) => [...prev, newItem]);
       setAddMode(false);
       setFormData({});
-      setShowPassword(false);
-      alert("Thêm thành công!");
     } catch (error) {
-      console.error("Add error:", error.response?.data || error.message);
-      alert(
-        "Lỗi khi thêm: " + (error.response?.data?.message || error.message)
-      );
+      alert("Lỗi: " + (error.response?.data?.message || error.message));
     } finally {
       setLoading(false);
     }
   };
 
   const handleDelete = async (id) => {
-    if (!token) return;
-    if (!window.confirm("Bạn có chắc chắn muốn xóa mục này?")) return;
+    if (!token || !window.confirm("Xóa mục này?")) return;
 
     setLoading(true);
     try {
@@ -237,9 +271,7 @@ export default function Dashboard() {
         headers: { Authorization: `Bearer ${token}` },
       });
       setData((prev) => prev.filter((it) => it.id !== id));
-      alert("Xóa thành công!");
     } catch (error) {
-      console.error("Delete error:", error.response?.data || error.message);
       alert(
         "Xóa thất bại: " + (error.response?.data?.message || error.message)
       );
@@ -249,53 +281,45 @@ export default function Dashboard() {
   };
 
   const handleEditOpen = (item) => {
+    console.log("Editing item:", item);
     setEditingItem(item);
-    const { password, ...itemWithoutPassword } = item;
-    setFormData({ ...itemWithoutPassword, password: "" });
-    setAddMode(false);
+    setFormData({
+      ...item,
+      password:
+        item.password && item.password.trim() !== ""
+          ? item.password
+          : "••••••••", // HIỂN THỊ HASH HOẶC CHẤM
+    });
     setShowPassword(false);
   };
 
   const handleUpdate = async () => {
     if (!token || !editingItem) return;
 
-    // Validate required fields
-    const requiredFields = getFormFields(types, "edit").filter(
-      (f) => f.required
-    );
-    const missingFields = requiredFields.filter(
+    const required = getFormFields(types, "edit").filter((f) => f.required);
+    const missing = required.filter(
       (f) => !formData[f.key] || formData[f.key].toString().trim() === ""
     );
 
-    if (missingFields.length > 0) {
-      alert(
-        `Vui lòng điền các trường bắt buộc: ${missingFields
-          .map((f) => f.label)
-          .join(", ")}`
-      );
+    if (missing.length > 0) {
+      alert(`Thiếu: ${missing.map((f) => f.label).join(", ")}`);
       return;
     }
 
     setLoading(true);
     try {
-      const payload = buildPayloadForType(types, formData);
-      const response = await axios.put(
+      const payload = buildPayloadForType(types, formData, "edit");
+      const res = await axios.put(
         `${API_URL}/api/${types}/${editingItem.id}`,
         payload,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
-      const updatedRaw = response.data?.data ?? response.data;
-      const updated = normalizeItem(updatedRaw, types);
 
+      const updated = normalizeItem(res.data?.data ?? res.data, types);
       setData((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
       setEditingItem(null);
       setFormData({});
-      setShowPassword(false);
-      alert("Cập nhật thành công!");
     } catch (error) {
-      console.error("Update error:", error.response?.data || error.message);
       alert(
         "Cập nhật thất bại: " + (error.response?.data?.message || error.message)
       );
@@ -304,97 +328,53 @@ export default function Dashboard() {
     }
   };
 
-  // Filter data based on search term
-  const filteredData = data.filter((item) => {
-    if (!searchTerm) return true;
+  const filteredData = useMemo(() => {
+    if (!searchTerm.trim()) return data;
 
-    const searchLower = searchTerm.toLowerCase();
-    if (types === "users") {
-      return (
-        (item.name && item.name.toLowerCase().includes(searchLower)) ||
-        (item.email && item.email.toLowerCase().includes(searchLower)) ||
-        (item.phone && item.phone.includes(searchTerm))
-      );
-    } else if (types === "units") {
-      return (
-        (item.name && item.name.toLowerCase().includes(searchLower)) ||
-        (item.code && item.code.toLowerCase().includes(searchLower))
-      );
-    } else if (types === "teams") {
-      return (
-        (item.name && item.name.toLowerCase().includes(searchLower)) ||
-        (item.description &&
-          item.description.toLowerCase().includes(searchLower))
-      );
-    }
-    return true;
-  });
+    const term = searchTerm.trim().toLowerCase();
 
-  /* ---------- RENDER FUNCTIONS ---------- */
-  const displayValue = (val, fieldKey, mode) => {
-    if (val === undefined || val === null) return "";
-    if (fieldKey === "password" && mode === "edit") return "";
-    if (typeof val === "object") {
-      if (Array.isArray(val)) {
-        return val.map((v) => v.name ?? v.id ?? "").join(", ");
+    return data.filter((item) => {
+      if (types === "users") {
+        const fullName = `${item.first_name || ""} ${item.last_name || ""} ${
+          item.name || ""
+        }`.toLowerCase();
+        const email = (item.email || "").toLowerCase();
+        const phone = (item.phone || "").toLowerCase();
+        const unitName = (item.unit?.name || "").toLowerCase();
+        const teamName = (item.team?.name || "").toLowerCase();
+
+        return (
+          fullName.includes(term) ||
+          email.includes(term) ||
+          phone.includes(term) ||
+          unitName.includes(term) ||
+          teamName.includes(term)
+        );
       }
-      return val.name ?? val.id ?? JSON.stringify(val);
-    }
-    return val;
-  };
 
-  const renderInputField = (f, value, onChange, mode = "add") => {
+      if (types === "units") {
+        const name = (item.name || "").toLowerCase();
+        const code = (item.code || "").toLowerCase();
+        return name.includes(term) || code.includes(term);
+      }
+
+      if (types === "teams") {
+        const name = (item.name || "").toLowerCase();
+        const description = (item.description || "").toLowerCase();
+        const unitCode = (item.unit_code || "").toLowerCase();
+        return (
+          name.includes(term) ||
+          description.includes(term) ||
+          unitCode.includes(term)
+        );
+      }
+
+      return false;
+    });
+  }, [data, searchTerm, types]);
+
+  const renderInputField = (f, value, onChange, mode) => {
     const inputId = `${mode}-${f.key}`;
-
-    // if (f.key === "password") {
-    //   return (
-    //     <div className="password-wrapper">
-    //       <input
-    //         id={inputId}
-    //         className="form-input"
-    //         type={showPassword ? "text" : "password"}
-    //         value={value}
-    //         onChange={onChange}
-    //         placeholder={
-    //           mode === "add" ? "Nhập mật khẩu" : "Để trống nếu không đổi"
-    //         }
-    //         required={f.required}
-    //       />
-    //       <button
-    //         type="button"
-    //         className="password-toggle"
-    //         onClick={togglePasswordVisibility}
-    //         title={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
-    //       >
-    //         {showPassword ? (
-    //           <svg
-    //             width="20"
-    //             height="20"
-    //             viewBox="0 0 24 24"
-    //             fill="none"
-    //             stroke="currentColor"
-    //             strokeWidth="2"
-    //           >
-    //             <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-    //             <circle cx="12" cy="12" r="3"></circle>
-    //           </svg>
-    //         ) : (
-    //           <svg
-    //             width="20"
-    //             height="20"
-    //             viewBox="0 0 24 24"
-    //             fill="none"
-    //             stroke="currentColor"
-    //             strokeWidth="2"
-    //           >
-    //             <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-    //             <line x1="1" y1="1" x2="23" y2="23"></line>
-    //           </svg>
-    //         )}
-    //       </button>
-    //     </div>
-    //   );
-    // }
 
     if (f.key === "date_of_birth") {
       return (
@@ -402,7 +382,7 @@ export default function Dashboard() {
           id={inputId}
           className="form-input"
           type="date"
-          value={value}
+          value={value || ""}
           onChange={onChange}
           required={f.required}
         />
@@ -414,7 +394,7 @@ export default function Dashboard() {
         <select
           id={inputId}
           className="form-input"
-          value={value}
+          value={value || ""}
           onChange={onChange}
           required={f.required}
         >
@@ -431,7 +411,7 @@ export default function Dashboard() {
         <select
           id={inputId}
           className="form-input"
-          value={value}
+          value={value || ""}
           onChange={onChange}
           required={f.required}
         >
@@ -448,7 +428,7 @@ export default function Dashboard() {
         <select
           id={inputId}
           className="form-input"
-          value={value}
+          value={value || ""}
           onChange={onChange}
           required={f.required}
         >
@@ -459,11 +439,38 @@ export default function Dashboard() {
       );
     }
 
+    if (f.key === "password") {
+      return (
+        <div className="password-wrapper">
+          <input
+            id={inputId}
+            className="form-input"
+            type={showPassword ? "text" : "password"}
+            value={mode === "add" ? value : value || "••••••••"}
+            onChange={mode === "add" ? onChange : undefined}
+            placeholder={mode === "add" ? "Nhập mật khẩu" : ""}
+            required={mode === "add"}
+            disabled={mode === "edit"}
+          />
+          <button
+            type="button"
+            className="password-toggle"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setShowPassword(!showPassword);
+            }}
+          >
+            {showPassword ? <FaEye /> : <FaEyeSlash />}
+          </button>
+        </div>
+      );
+    }
     return (
       <input
         id={inputId}
         className="form-input"
-        value={value}
+        value={value || ""}
         onChange={onChange}
         type={f.type || "text"}
         placeholder={`Nhập ${f.label.toLowerCase()}`}
@@ -472,8 +479,22 @@ export default function Dashboard() {
     );
   };
 
+  useEffect(() => {
+    const handleEsc = (e) => {
+      if (e.key === "Escape") {
+        setAddMode(false);
+        setEditingItem(null);
+        setFormData({});
+        setShowPassword(false);
+      }
+    };
+    window.addEventListener("keydown", handleEsc);
+    return () => window.removeEventListener("keydown", handleEsc);
+  }, []);
+
   return (
     <div className="dashboard-container">
+      {/* HEADER */}
       <div className="dashboard-header">
         <h2 className="dashboard-title">
           {types === "users"
@@ -482,8 +503,16 @@ export default function Dashboard() {
             ? " Quản lý Đơn vị"
             : " Quản lý Nhóm"}
         </h2>
-
         <div className="dashboard-controls">
+          <div className="search-container">
+            <input
+              type="text"
+              placeholder="Tìm kiếm..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="search-input"
+            />
+          </div>
           <button
             onClick={() => {
               setFormData({});
@@ -499,26 +528,39 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Navigation Tabs */}
+      {/* TABS */}
       <div className="tab-container">
         {tabs.map((tab) => (
           <button
             key={tab.key}
-            onClick={() => setTypes(tab.key)}
+            onClick={() => {
+              setTypes(tab.key);
+              setEditingItem(null);
+              setAddMode(false);
+              setFormData({});
+            }}
             className={`tab-button ${types === tab.key ? "active" : ""}`}
           >
-            <span className="tab-icon">{tab.icon}</span>
             {tab.label}
           </button>
         ))}
       </div>
 
-      {/* Data Table */}
+      {error && (
+        <div className="error-message">
+          {error}
+          <button onClick={() => setError(null)} className="error-close">
+            x
+          </button>
+        </div>
+      )}
+
+      {/* TABLE */}
       <div className="table-container">
         {loading ? (
           <div className="loading-state">
             <div className="spinner"></div>
-            <p>Đang tải dữ liệu...</p>
+            <p>Đang tải...</p>
           </div>
         ) : (
           <table className="data-table">
@@ -526,7 +568,7 @@ export default function Dashboard() {
               <tr>
                 {types === "users" &&
                   [
-                    "ID",
+                    "STT",
                     "Tên",
                     "Email",
                     "Vai trò",
@@ -535,12 +577,12 @@ export default function Dashboard() {
                     "Thao tác",
                   ].map((h) => <th key={h}>{h}</th>)}
                 {types === "units" &&
-                  ["ID", "Tên", "Loại", "Mã", "Thao tác"].map((h) => (
+                  ["STT", "Tên", "Loại", "Mã", "Thao tác"].map((h) => (
                     <th key={h}>{h}</th>
                   ))}
                 {types === "teams" &&
                   [
-                    "ID",
+                    "STT",
                     "Tên",
                     "Đơn vị",
                     "Mô tả",
@@ -549,7 +591,6 @@ export default function Dashboard() {
                   ].map((h) => <th key={h}>{h}</th>)}
               </tr>
             </thead>
-
             <tbody>
               {filteredData.length === 0 ? (
                 <tr>
@@ -557,23 +598,25 @@ export default function Dashboard() {
                     colSpan={types === "users" ? 7 : types === "units" ? 5 : 6}
                     className="no-data"
                   >
-                    {searchTerm
-                      ? "Không tìm thấy kết quả phù hợp"
-                      : "Không có dữ liệu"}
+                    {searchTerm ? "Không tìm thấy" : "Không có dữ liệu"}
                   </td>
                 </tr>
               ) : (
-                filteredData.map((item) => (
-                  <tr key={item.id} className="table-row">
+                filteredData.map((item, index) => (
+                  <tr
+                    key={item.id}
+                    className="table-row clickable-row"
+                    onClick={() => handleGetDetail(item)}
+                  >
                     {types === "users" && (
                       <>
-                        <td className="id-cell">{item.id}</td>
+                        <td>{index + 1}</td>
                         <td>
                           <div className="user-info">
                             {item.avatar && (
                               <img
                                 src={item.avatar}
-                                alt="Avatar"
+                                alt=""
                                 className="avatar"
                               />
                             )}
@@ -595,19 +638,17 @@ export default function Dashboard() {
                         </td>
                         <td>{item.unit?.name ?? "-"}</td>
                         <td>{item.team?.name ?? "-"}</td>
-                        <td>
+                        <td onClick={(e) => e.stopPropagation()}>
                           <div className="action-buttons">
                             <button
                               className="edit-button"
                               onClick={() => handleEditOpen(item)}
-                              disabled={loading}
                             >
                               <FaPen />
                             </button>
                             <button
                               className="delete-button"
                               onClick={() => handleDelete(item.id)}
-                              disabled={loading}
                             >
                               <FaTrash />
                             </button>
@@ -615,28 +656,25 @@ export default function Dashboard() {
                         </td>
                       </>
                     )}
-
                     {types === "units" && (
                       <>
-                        <td className="id-cell">{item.id}</td>
+                        <td>{index + 1}</td>
                         <td>{item.name}</td>
                         <td>{item.type}</td>
                         <td>
                           <span className="code-badge">{item.code}</span>
                         </td>
-                        <td>
+                        <td onClick={(e) => e.stopPropagation()}>
                           <div className="action-buttons">
                             <button
                               className="edit-button"
                               onClick={() => handleEditOpen(item)}
-                              disabled={loading}
                             >
                               <FaPen />
                             </button>
                             <button
                               className="delete-button"
                               onClick={() => handleDelete(item.id)}
-                              disabled={loading}
                             >
                               <FaTrash />
                             </button>
@@ -644,10 +682,9 @@ export default function Dashboard() {
                         </td>
                       </>
                     )}
-
                     {types === "teams" && (
                       <>
-                        <td className="id-cell">{item.id}</td>
+                        <td>{index + 1}</td>
                         <td>{item.name}</td>
                         <td>{item.unit?.name ?? "-"}</td>
                         <td className="description-cell">
@@ -657,24 +694,20 @@ export default function Dashboard() {
                           <span className={`status-badge ${item.status}`}>
                             {item.status === "active"
                               ? "Hoạt động"
-                              : item.status === "inactive"
-                              ? "Không hoạt động"
-                              : item.status}
+                              : "Không hoạt động"}
                           </span>
                         </td>
-                        <td>
+                        <td onClick={(e) => e.stopPropagation()}>
                           <div className="action-buttons">
                             <button
                               className="edit-button"
                               onClick={() => handleEditOpen(item)}
-                              disabled={loading}
                             >
                               <FaPen />
                             </button>
                             <button
                               className="delete-button"
                               onClick={() => handleDelete(item.id)}
-                              disabled={loading}
                             >
                               <FaTrash />
                             </button>
@@ -690,10 +723,16 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* Add Modal */}
+      {/* ADD MODAL */}
       {addMode && (
-        <div className="modal-overlay">
-          <div className="modal">
+        <div
+          className="modal-overlay"
+          onClick={() => {
+            setAddMode(false);
+            setFormData({});
+          }}
+        >
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>
                 Thêm{" "}
@@ -708,13 +747,11 @@ export default function Dashboard() {
                 onClick={() => {
                   setAddMode(false);
                   setFormData({});
-                  setShowPassword(false);
                 }}
               >
-                ✕
+                x
               </button>
             </div>
-
             <div className="form-grid">
               {getFormFields(types, "add").map((f) => (
                 <div key={f.key} className="form-field">
@@ -724,7 +761,7 @@ export default function Dashboard() {
                   </label>
                   {renderInputField(
                     f,
-                    displayValue(formData[f.key], f.key, "add"),
+                    formData[f.key] || "",
                     (e) =>
                       setFormData({ ...formData, [f.key]: e.target.value }),
                     "add"
@@ -732,35 +769,39 @@ export default function Dashboard() {
                 </div>
               ))}
             </div>
-
             <div className="modal-actions">
               <button
                 className="save-button"
                 onClick={handleAddSubmit}
                 disabled={loading}
               >
-                {loading ? "⏳ Đang xử lý..." : "💾 Lưu"}
+                {loading ? "Đang xử lý..." : "Lưu"}
               </button>
               <button
                 className="cancel-button"
                 onClick={() => {
                   setAddMode(false);
                   setFormData({});
-                  setShowPassword(false);
                 }}
                 disabled={loading}
               >
-                ❌ Hủy
+                Hủy
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Edit Modal */}
+      {/* EDIT MODAL */}
       {editingItem && (
-        <div className="modal-overlay">
-          <div className="modal">
+        <div
+          className="modal-overlay"
+          onClick={() => {
+            setEditingItem(null);
+            setFormData({});
+          }}
+        >
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>
                 Sửa{" "}
@@ -775,45 +816,32 @@ export default function Dashboard() {
                 onClick={() => {
                   setEditingItem(null);
                   setFormData({});
-                  setShowPassword(false);
                 }}
               >
-                ✕
+                x
               </button>
             </div>
-
             <div className="form-grid">
-              {getFormFields(types, "edit").map((f) => {
-                const val = formData[f.key];
-                const shown = displayValue(val, f.key, "edit");
-
-                return (
-                  <div key={f.key} className="form-field">
-                    <label className="form-label">
-                      {f.label}
-                      {f.required && <span className="required">*</span>}
-                    </label>
-                    {typeof val === "object" && val !== null ? (
-                      <input className="form-input" value={shown} disabled />
-                    ) : (
-                      renderInputField(
-                        f,
-                        shown,
-                        (e) =>
-                          setFormData({ ...formData, [f.key]: e.target.value }),
-                        "edit"
-                      )
-                    )}
-                  </div>
-                );
-              })}
-
-              {/* Metadata fields */}
-              {["created_at", "updated_at", "email_verified_at"].map((meta) =>
+              {getFormFields(types, "edit").map((f) => (
+                <div key={f.key} className="form-field">
+                  <label className="form-label">
+                    {f.label}
+                    {f.required && <span className="required">*</span>}
+                  </label>
+                  {renderInputField(
+                    f,
+                    formData[f.key] || "",
+                    (e) =>
+                      setFormData({ ...formData, [f.key]: e.target.value }),
+                    "edit"
+                  )}
+                </div>
+              ))}
+              {["created_at", "updated_at"].map((meta) =>
                 formData[meta] ? (
                   <div key={meta} className="form-field">
                     <label className="form-label">
-                      {meta.replace("_", " ")}
+                      {meta.replace(/_/g, " ")}
                     </label>
                     <input
                       className="form-input"
@@ -824,25 +852,205 @@ export default function Dashboard() {
                 ) : null
               )}
             </div>
-
             <div className="modal-actions">
               <button
                 className="save-button"
                 onClick={handleUpdate}
                 disabled={loading}
               >
-                {loading ? "⏳ Đang xử lý..." : "💾 Cập nhật"}
+                {loading ? "Đang xử lý..." : "Cập nhật"}
               </button>
               <button
                 className="cancel-button"
                 onClick={() => {
                   setEditingItem(null);
                   setFormData({});
-                  setShowPassword(false);
                 }}
                 disabled={loading}
               >
-                ❌ Hủy
+                Hủy
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DETAIL MODAL */}
+      {showDetailModal && (
+        <div
+          className="modal-overlay"
+          onClick={() => setShowDetailModal(false)}
+        >
+          <div
+            className="modal detail-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-header">
+              <h3>
+                Chi tiết{" "}
+                {types === "users"
+                  ? "người dùng"
+                  : types === "units"
+                  ? "đơn vị"
+                  : "nhóm"}
+              </h3>
+              <button
+                className="close-button"
+                onClick={() => setShowDetailModal(false)}
+              >
+                x
+              </button>
+            </div>
+
+            <div className="modal-body detail-modal-body">
+              {detailLoading ? (
+                <div className="detail-loading">
+                  <div className="spinner"></div>
+                  <p>Đang tải...</p>
+                </div>
+              ) : selectedDetailItem ? (
+                <div className="detail-content">
+                  {/* USERS */}
+                  {types === "users" && (
+                    <div className="detail-grid">
+                      <div className="detail-item">
+                        <span className="detail-label">Họ:</span>
+                        <span className="detail-value">
+                          {selectedDetailItem.first_name || "-"}
+                        </span>
+                      </div>
+                      <div className="detail-item">
+                        <span className="detail-label">Tên:</span>
+                        <span className="detail-value">
+                          {selectedDetailItem.last_name || "-"}
+                        </span>
+                      </div>
+                      <div className="detail-item">
+                        <span className="detail-label">Tên đầy đủ:</span>
+                        <span className="detail-value">
+                          {selectedDetailItem.name || "-"}
+                        </span>
+                      </div>
+                      <div className="detail-item">
+                        <span className="detail-label">Email:</span>
+                        <span className="detail-value">
+                          {selectedDetailItem.email}
+                        </span>
+                      </div>
+                      <div className="detail-item">
+                        <span className="detail-label">Số điện thoại:</span>
+                        <span className="detail-value">
+                          {selectedDetailItem.phone || "-"}
+                        </span>
+                      </div>
+                      <div className="detail-item">
+                        <span className="detail-label">Ngày sinh:</span>
+                        <span className="detail-value">
+                          {selectedDetailItem.date_of_birth || "-"}
+                        </span>
+                      </div>
+                      <div className="detail-item">
+                        <span className="detail-label">Giới tính:</span>
+                        <span className="detail-value">
+                          {selectedDetailItem.gender === "male"
+                            ? "Nam"
+                            : selectedDetailItem.gender === "female"
+                            ? "Nữ"
+                            : selectedDetailItem.gender === "other"
+                            ? "Khác"
+                            : "-"}
+                        </span>
+                      </div>
+                      <div className="detail-item">
+                        <span className="detail-label">Địa chỉ:</span>
+                        <span className="detail-value">
+                          {selectedDetailItem.address || "-"}
+                        </span>
+                      </div>
+
+                      <div className="detail-item">
+                        <span className="detail-label">Vai trò:</span>
+                        <span className="detail-value role-badge">
+                          {selectedDetailItem.role === "admin"
+                            ? "Quản trị"
+                            : selectedDetailItem.role === "user"
+                            ? "Người dùng"
+                            : selectedDetailItem.role === "manager"
+                            ? "Quản lý"
+                            : selectedDetailItem.role}
+                        </span>
+                      </div>
+                      <div className="detail-item">
+                        <span className="detail-label">Trạng thái:</span>
+                        <span
+                          className={`detail-value status-badge ${selectedDetailItem.status}`}
+                        >
+                          {selectedDetailItem.status === "active"
+                            ? "Hoạt động"
+                            : "Không hoạt động"}
+                        </span>
+                      </div>
+                      <div className="detail-item">
+                        <span className="detail-label">Mã đơn vị:</span>
+                        <span className="detail-value code-badge">
+                          {selectedDetailItem.unit_code || "-"}
+                        </span>
+                      </div>
+                      <div className="detail-item">
+                        <span className="detail-label">Đơn vị:</span>
+                        <span className="detail-value">
+                          {selectedDetailItem.unit?.name || "-"}
+                        </span>
+                      </div>
+                      <div className="detail-item">
+                        <span className="detail-label">Mã nhóm:</span>
+                        <span className="detail-value code-badge">
+                          {selectedDetailItem.team_code || "-"}
+                        </span>
+                      </div>
+                      <div className="detail-item">
+                        <span className="detail-label">Nhóm:</span>
+                        <span className="detail-value">
+                          {selectedDetailItem.team?.name || "-"}
+                        </span>
+                      </div>
+                      <div className="detail-item full-width">
+                        <span className="detail-label">Ngày tạo:</span>
+                        <span className="detail-value">
+                          {selectedDetailItem.created_at
+                            ? new Date(
+                                selectedDetailItem.created_at
+                              ).toLocaleString("vi-VN")
+                            : "-"}
+                        </span>
+                      </div>
+                      <div className="detail-item full-width">
+                        <span className="detail-label">Cập nhật cuối:</span>
+                        <span className="detail-value">
+                          {selectedDetailItem.updated_at
+                            ? new Date(
+                                selectedDetailItem.updated_at
+                              ).toLocaleString("vi-VN")
+                            : "-"}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                  {/* UNITS & TEAMS giữ nguyên */}
+                </div>
+              ) : (
+                <div className="detail-error">
+                  <p>{error || "Không có dữ liệu chi tiết"}</p>
+                </div>
+              )}
+            </div>
+
+            <div className="modal-actions">
+              <button
+                className="cancel-button"
+                onClick={() => setShowDetailModal(false)}
+              >
+                Đóng
               </button>
             </div>
           </div>

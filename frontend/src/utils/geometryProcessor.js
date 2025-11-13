@@ -227,14 +227,14 @@ function parseWKBMultiPolygon(b, o, le) {
  * Fix NaN error and improve coordinate handling
  */
 export function convertGeoJSONToLeaflet(geometry) {
-  console.log("🔧 convertGeoJSONToLeaflet called with:", {
-    hasGeometry: !!geometry,
-    type: geometry?.type,
-    hasCoordinates: !!geometry?.coordinates,
-    coordinatesType: Array.isArray(geometry?.coordinates) ? 'array' : typeof geometry?.coordinates,
-    coordinatesLength: Array.isArray(geometry?.coordinates) ? geometry.coordinates.length : 'N/A',
-    geometry: geometry
-  });
+  // console.log("🔧 convertGeoJSONToLeaflet called with:", {
+  //   hasGeometry: !!geometry,
+  //   type: geometry?.type,
+  //   hasCoordinates: !!geometry?.coordinates,
+  //   coordinatesType: Array.isArray(geometry?.coordinates) ? 'array' : typeof geometry?.coordinates,
+  //   coordinatesLength: Array.isArray(geometry?.coordinates) ? geometry.coordinates.length : 'N/A',
+  //   geometry: geometry
+  // });
 
   if (!geometry) {
     console.error("❌ No geometry provided");
@@ -247,9 +247,12 @@ export function convertGeoJSONToLeaflet(geometry) {
   }
 
   // GeometryCollection doesn't have coordinates, it has geometries
-  if (geometry.type === 'GeometryCollection') {
+  if (geometry.type === "GeometryCollection") {
     if (!geometry.geometries || !Array.isArray(geometry.geometries)) {
-      console.error("❌ GeometryCollection missing geometries array:", geometry);
+      console.error(
+        "❌ GeometryCollection missing geometries array:",
+        geometry
+      );
       return null;
     }
     // Will be handled in the switch statement below
@@ -261,7 +264,7 @@ export function convertGeoJSONToLeaflet(geometry) {
     }
   }
 
-  console.log("🔧 Converting geometry type:", geometry.type);
+  // console.log("🔧 Converting geometry type:", geometry.type);
 
   const convertCoord = ([x, y]) => {
     // Validate coordinates
@@ -347,8 +350,8 @@ export function convertGeoJSONToLeaflet(geometry) {
         break;
       case "GeometryCollection":
         // GeometryCollection contains an array of geometries
-        console.log("🔧 Processing GeometryCollection with", geometry.geometries?.length || 0, "geometries");
-        
+        // console.log("🔧 Processing GeometryCollection with", geometry.geometries?.length || 0, "geometries");
+
         if (!geometry.geometries || !Array.isArray(geometry.geometries)) {
           console.error("❌ GeometryCollection missing geometries array");
           return null;
@@ -361,15 +364,15 @@ export function convertGeoJSONToLeaflet(geometry) {
             console.warn("⚠️ Skipping invalid geometry in collection:", geom);
             continue;
           }
-          
+
           const converted = convertGeoJSONToLeaflet(geom);
           if (converted) {
             // If it's a polygon or multipolygon, we may need to flatten
             if (Array.isArray(converted)) {
-              if (geom.type === 'Polygon') {
+              if (geom.type === "Polygon") {
                 // Polygon returns [[ring1], [ring2], ...], wrap it
                 convertedGeometries.push(converted);
-              } else if (geom.type === 'MultiPolygon') {
+              } else if (geom.type === "MultiPolygon") {
                 // MultiPolygon returns [[poly1], [poly2], ...], spread them
                 convertedGeometries.push(...converted);
               } else {
@@ -380,11 +383,14 @@ export function convertGeoJSONToLeaflet(geometry) {
               convertedGeometries.push(converted);
             }
           } else {
-            console.warn("⚠️ Failed to convert geometry in collection:", geom.type);
+            console.warn(
+              "⚠️ Failed to convert geometry in collection:",
+              geom.type
+            );
           }
         }
 
-        console.log("🔧 GeometryCollection converted to", convertedGeometries.length, "geometries");
+        // console.log("🔧 GeometryCollection converted to", convertedGeometries.length, "geometries");
         result = convertedGeometries.length > 0 ? convertedGeometries : null;
         break;
       default:
@@ -392,7 +398,7 @@ export function convertGeoJSONToLeaflet(geometry) {
         return null;
     }
 
-    console.log("🔧 Conversion result:", result);
+    // console.log("🔧 Conversion result:", result);
     return result;
   } catch (error) {
     console.error("❌ Error in convertGeoJSONToLeaflet:", error);
