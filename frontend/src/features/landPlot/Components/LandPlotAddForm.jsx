@@ -119,6 +119,28 @@ const LandPlotAddForm = ({
             </span>
           ) : null}
 
+          <div className="form-group">
+            <label className="blue-field-label" style={{ marginTop: "10px" }}>
+              <FaMap className="label-icon" />
+              Phường/Xã <span className="required-asterisk">*</span>
+            </label>
+            <input
+              type="text"
+              name="phuong_xa"
+              value={formData.phuong_xa}
+              onChange={handleInputChange}
+              onBlur={handleBlur}
+              placeholder="Nhập Phường/Xã"
+              className={`blue-input ${
+                errors.phuong_xa && touched.phuong_xa ? "error" : ""
+              }`}
+              disabled={loading}
+            />
+            {errors.phuong_xa && touched.phuong_xa && (
+              <span className="blue-error-message">{errors.phuong_xa}</span>
+            )}
+          </div>
+
           <div className="plot-list-info">
             {isSearchingPlotList ? (
               <small style={{ color: "#17a2b8" }}>
@@ -161,7 +183,7 @@ const LandPlotAddForm = ({
           {errors.ky_hieu_mdsd && touched.ky_hieu_mdsd && (
             <span className="blue-error-message">{errors.ky_hieu_mdsd}</span>
           )}
-          <div className="input-hint">
+          {/* <div className="input-hint">
             Nhập nhiều loại đất bằng dấu phẩy (,) hoặc dấu cộng (+) (VD: CAN,
             DGT, ODT hoặc CAN + DGT + ODT)
             {autoDistributeEnabled && (
@@ -169,7 +191,7 @@ const LandPlotAddForm = ({
                 • Tự động chia diện tích
               </span>
             )}
-          </div>
+          </div> */}
           {/* Hiển thị preview các ký hiệu đã nhập */}
           {Array.isArray(formData.ky_hieu_mdsd) &&
             formData.ky_hieu_mdsd.length > 0 && (
@@ -215,28 +237,6 @@ const LandPlotAddForm = ({
               ? "Diện tích được lấy tự động từ PlotList"
               : "Không tìm thấy PlotList, vui lòng nhập diện tích thủ công"}
           </div>
-        </div>
-
-        <div className="form-group">
-          <label className="blue-field-label">
-            <FaMap className="label-icon" />
-            Phường/Xã <span className="required-asterisk">*</span>
-          </label>
-          <input
-            type="text"
-            name="phuong_xa"
-            value={formData.phuong_xa}
-            onChange={handleInputChange}
-            onBlur={handleBlur}
-            placeholder="Nhập Phường/Xã"
-            className={`blue-input ${
-              errors.phuong_xa && touched.phuong_xa ? "error" : ""
-            }`}
-            disabled={loading}
-          />
-          {errors.phuong_xa && touched.phuong_xa && (
-            <span className="blue-error-message">{errors.phuong_xa}</span>
-          )}
         </div>
       </div>
 

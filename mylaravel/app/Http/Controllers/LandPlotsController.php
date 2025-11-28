@@ -64,6 +64,13 @@ class LandPlotsController extends Controller
             $query->where('lp.so_thua', $request->input('so_thua'));
         }
 
+        // Nếu chỉ có số tờ/số thửa mà không có phường -> không tìm (tránh ambiguous)
+        if (
+            ($request->filled('so_to') || $request->filled('so_thua')) && 
+            !$request->filled('phuong_xa')
+        ) {
+            $query->whereRaw('1 = 0'); // Không trả về kết quả
+        }
         return $query;
     }
 
@@ -151,129 +158,7 @@ class LandPlotsController extends Controller
             return $plot;
         });
     }
-    // public function index()
-    // {
-    //     try {
-    //         $landPlots = DB::table('land_plots as lp')
-    //             ->leftJoin('plot_lists as pl', 'lp.plot_list_id', '=', 'pl.id')
-    //             ->select(
-    //                 'lp.*',
-    //                 'pl.dien_tich as plot_list_dien_tich',
-    //                 'pl.organization_name',
-    //                 'pl.dia_chi_thua_dat',
-    //                 'pl.xa',
-    //                 DB::raw('ST_X(ST_Centroid(lp.geom)) AS lng'),
-    //                 DB::raw('ST_Y(ST_Centroid(lp.geom)) AS lat')
-    //             )
-    //             ->orderBy('lp.id', 'desc')
-    //             ->get();
-
-    //         foreach ($landPlots as $plot) {
-    //             // ✅ Parse PostgreSQL array literal
-    //             $kyHieuMdsd = $plot->ky_hieu_mdsd;
-    //             if ($kyHieuMdsd && is_string($kyHieuMdsd)) {
-    //                 $cleaned = trim($kyHieuMdsd, '{}"');
-    //                 $plot->ky_hieu_mdsd = $cleaned ? explode(',', $cleaned) : [];
-    //             } else {
-    //                 $plot->ky_hieu_mdsd = [];
-    //             }
-
-    //             // ✅ Lấy land_use_details
-    //             $landUseDetails = DB::table('land_plot_details')
-    //                 ->where('land_plot_id', $plot->id)
-    //                 ->select('id', 
-    //                 'ky_hieu_mdsd', 
-    //                 'dien_tich', 
-    //                 'color', 
-    //                 // 'geometry'
-    //                 // DB::raw(('ST_AsGeoJSON(geometry) as geometry'))
-    //                 DB::raw('CASE
-    //                     WHEN geometry IS NULL THEN NULL
-    //                     ELSE ST_AsGeoJSON(geometry)
-    //                 END AS geometry')
-    //                 )
-    //                 ->orderBy('id', 'asc')
-    //                 ->get()
-    //                 ->map(function ($detail) {
-    //                 // Chuyển đổi geometry từ GeoJSON string sang object
-    //                     if ($detail->geometry && is_string($detail->geometry)) {
-    //                         try {
-    //                             $parsedGeometry = json_decode($detail->geometry);
-    //                             if (json_last_error() === JSON_ERROR_NONE) {
-    //                                 $detail->geometry = $parsedGeometry;
-    //                             } else {
-    //                                 $detail->geometry = null;
-    //                             }
-    //                         } catch (\Exception $e) {
-    //                             Log::warning("Failed to parse geometry JSON for detail {$detail->id}: " . $e->getMessage());
-    //                             $detail->geometry = null;
-    //                         }
-    //                     } else {
-    //                         $detail->geometry = null;
-    //                     }
-    //                     return $detail;
-    //                 })
-    //                 ->toArray();
-
-    //             $plot->land_use_details = $landUseDetails;
-                
-    //             if(!empty($landUseDetails)){
-    //                 Log::info("Plot {$plot->id} land_use_details geometry:", [
-    //                     'count' => count($landUseDetails),
-    //                     'geometries' => array_map(function($detail) {
-    //                         return [
-    //                             'id' => $detail->id,
-    //                             'has_geometry' => !empty($detail->geometry),
-    //                             'geometry_type' => $detail->geometry ? gettype($detail->geometry) : 'null'
-    //                         ];
-    //                     }, $landUseDetails)
-    //                 ]);
-    //             }
-
-    //             // ✅ LOGIC TÍNH DIỆN TÍCH TỔNG THEO THỨ TỰ ƯU TIÊN:
-    //             // 1. Nếu có plot_list_dien_tich -> dùng cái này
-    //             // 2. Nếu có land_use_details và có diện tích -> tính tổng chi tiết
-    //             // 3. Nếu không có cả hai -> dùng dien_tich chung
-    //             // 4. Mặc định: 0
-                
-    //             if ($plot->plot_list_dien_tich && $plot->plot_list_dien_tich > 0) {
-    //                 // Ưu tiên 1: Diện tích từ plot_list
-    //                 $plot->dien_tich_total = floatval($plot->plot_list_dien_tich);
-    //             } elseif (!empty($plot->land_use_details)) {
-    //                 // Ưu tiên 2: Tính tổng diện tích từ chi tiết
-    //                 $totalDetailArea = array_sum(array_column($plot->land_use_details, 'dien_tich'));
-    //                 if ($totalDetailArea > 0) {
-    //                     $plot->dien_tich_total = $totalDetailArea;
-    //                 } else {
-    //                     // Nếu chi tiết có nhưng diện tích = 0, dùng dien_tich chung
-    //                     $plot->dien_tich_total = $plot->dien_tich ? floatval($plot->dien_tich) : 0;
-    //                 }
-    //             } else {
-    //                 // Ưu tiên 3: Dùng dien_tich chung
-    //                 $plot->dien_tich_total = $plot->dien_tich ? floatval($plot->dien_tich) : 0;
-    //             }
-
-    //             // Đảm bảo diện tích tổng không âm
-    //             $plot->dien_tich_total = max(0, $plot->dien_tich_total);
-
-    //             // Debug log
-    //             Log::info("Plot {$plot->id}: " . 
-    //                     "plot_list_dien_tich = {$plot->plot_list_dien_tich}, " .
-    //                     "land_use_details_count = " . count($plot->land_use_details) . ", " .
-    //                     "dien_tich = {$plot->dien_tich}, " .
-    //                     "dien_tich_total = {$plot->dien_tich_total}");
-    //         }
-
-    //         return response()->json([
-    //             'success' => true,
-    //             'data' => $landPlots
-    //         ], 200);
-
-    //     } catch (\Exception $e) {
-    //         Log::error('LandPlots index error: ' . $e->getMessage());
-    //         return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
-    //     }
-    // }
+    
     public function index(Request $request)
     {
         try {
@@ -500,32 +385,7 @@ class LandPlotsController extends Controller
         }
     }
 
-    // public function show($id)
-    // {
-    //     $landPlot = DB::table('land_plots')
-    //         ->select(
-    //             'id',
-    //             'ten_chu',
-    //             'so_to',
-    //             'so_thua',
-    //             'ky_hieu_mdsd',
-    //             'phuong_xa',
-    //             'status',
-    //             'created_at',
-    //             'updated_at',
-    //             DB::raw('ST_X(ST_Centroid(geom)) AS lng'),
-    //             DB::raw('ST_Y(ST_Centroid(geom)) AS lat')
-    //         )
-    //         ->where('id', $id)
-    //         ->first();
-
-    //     if (!$landPlot) {
-    //         return response()->json(['success' => false, 'message' => 'Không tìm thấy thửa đất'], 404);
-    //     }
-
-    //     return response()->json(['success' => true, 'data' => $landPlot], 200);
-    // }
-
+   
     public function show($id)
     {
         try {
@@ -755,114 +615,6 @@ class LandPlotsController extends Controller
             ], 500);
         }
     }
-
-    // public function search(Request $request)
-    // {
-    //     try {
-    //         $query = land_plots::query();
-
-    //         // Tìm kiếm chính (không bắt buộc tất cả)
-    //         $searchConditions = false;
-
-    //         if ($request->filled('phuong_xa')) {
-    //             $query->where('phuong_xa', 'ILIKE', "%{$request->input('phuong_xa')}%");
-    //             $searchConditions = true;
-    //         }
-
-    //         if ($request->filled('so_to')) {
-    //             $query->where('so_to', $request->input('so_to'));
-    //             $searchConditions = true;
-    //         }
-
-    //         if ($request->filled('so_thua')) {
-    //             $query->where('so_thua', $request->input('so_thua'));
-    //             $searchConditions = true;
-    //         }
-
-    //         // Tìm kiếm chung (có thể dùng độc lập)
-    //         if ($request->filled('query')) {
-    //             $searchTerm = $request->input('query');
-    //             $query->where(function ($q) use ($searchTerm) {
-    //                 $q->where('ten_chu', 'ILIKE', "%{$searchTerm}%")
-    //                 ->orWhere('so_thua', 'ILIKE', "%{$searchTerm}%")
-    //                 ->orWhere('so_to', 'ILIKE', "%{$searchTerm}%")
-    //                 ->orWhere('phuong_xa', 'ILIKE', "%{$searchTerm}%")
-    //                 ->orWhere('ky_hieu_mdsd', 'ILIKE', "%{$searchTerm}%");
-    //                 // Xóa organization_name và dia_chi_thua_dat vì không có trong bảng land_plots
-    //             });
-    //             $searchConditions = true;
-    //         }
-
-    //         // Kiểm tra nếu không có điều kiện tìm kiếm nào
-    //         if (!$searchConditions) {
-    //             return response()->json([
-    //                 'success' => false,
-    //                 'message' => 'Vui lòng nhập ít nhất một thông tin tìm kiếm'
-    //             ], 400);
-    //         }
-
-    //         // Lấy dữ liệu với geom đã được chuyển đổi sang GeoJSON
-    //         $plots = $query->select(
-    //             'id',
-    //             'plot_list_id', 
-    //             'ten_chu',
-    //             'so_to',
-    //             'so_thua',
-    //             'ky_hieu_mdsd',
-    //             'phuong_xa',
-    //             'status',
-    //             'created_at',
-    //             'updated_at',
-    //             'dien_tich',
-    //             \DB::raw('ST_AsGeoJSON(geom) as geom_geojson')
-    //         )->orderBy('id', 'desc')->get();
-
-    //         // Parse dữ liệu
-    //         $plots->transform(function ($plot) {
-    //             // Xử lý geom
-    //             if ($plot->geom_geojson) {
-    //                 try {
-    //                     $plot->geom = json_decode($plot->geom_geojson);
-    //                 } catch (\Exception $e) {
-    //                     $plot->geom = null;
-    //                 }
-    //             } else {
-    //                 $plot->geom = null;
-    //             }
-                
-    //             // Chuyển đổi ky_hieu_mdsd từ PostgreSQL array literal sang array
-    //             if (is_string($plot->ky_hieu_mdsd)) {
-    //                 try {
-    //                     $cleaned = trim($plot->ky_hieu_mdsd, '{}');
-    //                     $plot->ky_hieu_mdsd = !empty($cleaned) ? explode(',', $cleaned) : [];
-    //                 } catch (\Exception $e) {
-    //                     $plot->ky_hieu_mdsd = [];
-    //                 }
-    //             } elseif ($plot->ky_hieu_mdsd === null) {
-    //                 $plot->ky_hieu_mdsd = [];
-    //             }
-                
-    //             unset($plot->geom_geojson);
-    //             return $plot;
-    //         });
-
-    //         return response()->json([
-    //             'success' => true,
-    //             'data' => $plots,
-    //             'total' => $plots->count(),
-    //             'message' => 'Tìm kiếm thành công'
-    //         ]);
-    //     } catch (\Exception $e) {
-    //         \Log::error('Search error: ' . $e->getMessage());
-    //         \Log::error('Search trace: ' . $e->getTraceAsString());
-    //         \Log::error('Search request: ' . json_encode($request->all()));
-            
-    //         return response()->json([
-    //             'success' => false, 
-    //             'message' => 'Có lỗi xảy ra khi tìm kiếm: ' . $e->getMessage()
-    //         ], 500);
-    //     }
-    // }
     
     // Trong LandPlotsController, tạo method test mới
     public function getGeometry(Request $request)
@@ -870,6 +622,7 @@ class LandPlotsController extends Controller
         $validator = Validator::make($request->all(), [
             'so_to' => 'required|integer',
             'so_thua' => 'required|integer',
+            'phuong_xa' => 'nullable|string|max:100'
         ]);
 
         if ($validator->fails()) {
@@ -1326,6 +1079,14 @@ class LandPlotsController extends Controller
     public function search(Request $request)
     {
         try {
+            // === VALIDATION MỚI: BẮT BUỘC CÓ PHƯỜNG/XÃ KHI TÌM SỐ TỜ/SỐ THỬA ===
+            if(($request->filled('so_to') || $request->filled('so_thua')) && !$request->filled('phuong_xa')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Khi tìm kiếm theo Số tờ hoặc Số thửa, vui lòng cung cấp Phường/Xã để giới hạn phạm vi tìm kiếm.'
+                ], 400);
+            }
+
             // Kiểm tra điều kiện bắt buộc
             if (!$request->filled('phuong_xa') && !$request->filled('so_to') && !$request->filled('so_thua')) {
                 return response()->json([
@@ -1531,73 +1292,7 @@ class LandPlotsController extends Controller
         }
     }
 
-    // public function getPhuongBoundary(Request $request)
-    // {
-    //     try {
-    //         $tenPhuong = $request->query('ten_phuong_xa');
-
-    //         if (!$tenPhuong || trim($tenPhuong) === '') {
-    //             return response()->json([
-    //                 'success' => false,
-    //                 'message' => 'Thiếu tên phường/xã'
-    //             ], 400);
-    //         }
-
-    //         Log::info('getPhuongBoundary request', ['ten_phuong_xa' => $tenPhuong]);
-
-    //         // Chuẩn hóa tên: loại bỏ "Phường", "Xã", khoảng trắng thừa
-    //         $cleanName = trim(preg_replace('/^(Phường|Xã)\s+/i', '', $tenPhuong));
-
-    //         $boundary = DB::table('phuong_xa_boundary')
-    //             ->whereRaw("TRIM(BOTH ' ' FROM REPLACE(ten_phuong_xa, 'Phường', '')) ILIKE ?", ["%$cleanName%"])
-    //             ->selectRaw("
-    //                 id,
-    //                 ten_phuong_xa,
-    //                 ma_hanh_chinh,
-    //                 ST_AsGeoJSON(ST_Multi(ST_MakeValid(geom))) AS geom,
-    //                 ST_GeometryType(geom) AS original_type
-    //             ")
-    //             ->first();
-
-    //         if (!$boundary) {
-    //             Log::warning('Không tìm thấy phường', ['query' => $cleanName]);
-    //             return response()->json([
-    //                 'success' => false,
-    //                 'message' => 'Không tìm thấy ranh giới phường/xã: ' . $tenPhuong
-    //             ], 404);
-    //         }
-
-    //         $geojson = json_decode($boundary->geom, true);
-
-    //         if (json_last_error() !== JSON_ERROR_NONE) {
-    //             Log::error('GeoJSON lỗi', ['error' => json_last_error_msg()]);
-    //             return response()->json([
-    //                 'success' => false,
-    //                 'message' => 'Dữ liệu ranh giới không hợp lệ'
-    //             ], 500);
-    //         }
-
-    //         return response()->json([
-    //             'success' => true,
-    //             'boundary' => $geojson,
-    //             'phuong_xa' => $boundary->ten_phuong_xa,
-    //             'ma_hanh_chinh' => $boundary->ma_hanh_chinh,
-    //             'geometry_type' => $boundary->original_type
-    //         ]);
-
-    //     } catch (\Exception $e) {
-    //         Log::error('getPhuongBoundary ERROR', [
-    //             'message' => $e->getMessage(),
-    //             'trace' => $e->getTraceAsString(),
-    //             'request' => $request->all()
-    //         ]);
-
-    //         return response()->json([
-    //             'success' => false,
-    //             'message' => 'Lỗi server: ' . $e->getMessage()
-    //         ], 500);
-    //     }
-    // }
+   
     /**
      * Helper function to remove Vietnamese diacritics
      */

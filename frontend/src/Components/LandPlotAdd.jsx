@@ -87,55 +87,6 @@ const LandPlotAdd = memo(
       }
     }, [show]);
 
-    // const searchPlotList = useCallback(async (so_to, so_thua) => {
-    //   if (!so_to || !so_thua) {
-    //     setPlotListInfo(null);
-    //     return;
-    //   }
-
-    //   setIsSearchingPlotList(true);
-
-    //   try {
-    //     const token = localStorage.getItem("token");
-    //     if (!token) {
-    //       throw new Error("No authentication token found. Please log in.");
-    //     }
-
-    //     const response = await axios.get(
-    //       "http://127.0.0.1:8000/api/plotlists",
-    //       {
-    //         params: {
-    //           so_to,
-    //           so_thua,
-    //         },
-    //         headers: {
-    //           Authorization: `Bearer ${token}`,
-    //         },
-    //       }
-    //     );
-
-    //     if (response.data.success && response.data.data.length > 0) {
-    //       const plotList = response.data.data[0];
-    //       setPlotListInfo(plotList);
-    //       // Convert dien_tich to string to ensure consistency
-    //       setFormData((prev) => ({
-    //         ...prev,
-    //         dien_tich:
-    //           plotList.dien_tich != null ? String(plotList.dien_tich) : "",
-    //       }));
-    //     } else {
-    //       setPlotListInfo(null);
-    //     }
-    //   } catch (error) {
-    //     console.error("Error fetching plot list:", error);
-    //     if (error.response && error.response.status === 401) {
-    //       console.warn("Unauthorized: Please check your authentication token.");
-    //     }
-    //     setPlotListInfo(null);
-    //   } finally {
-    //     setIsSearchingPlotList(false);
-    //   }
-    // }, []);
     const searchPlotList = useCallback(async (so_to, so_thua) => {
       if (!so_to || !so_thua) {
         setPlotListInfo(null);

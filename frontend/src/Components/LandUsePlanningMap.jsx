@@ -229,7 +229,7 @@ const PlotInfo = ({ plot, detail }) => {
         <p>Diện tích: {parseFloat(detail.dien_tich).toLocaleString()} m²</p>
         <p>Tỷ lệ: {percentage.toFixed(2)}%</p>
         <p>Chủ sở hữu: {plot.ten_chu || "Chưa cập nhật"}</p>
-        <p>Phường/Xã: {plot.phuong_xa}</p>
+        {/* <p>Phường/Xã: {plot.phuong_xa}</p> */}
 
         <button
           onClick={handleDirectionsClick}
@@ -1309,12 +1309,12 @@ const LandUsePlanningMap = () => {
             {isLoading ? "Đang tải..." : "Tra cứu"}
           </button>
         </div>
-        <select className="select_qh">
+        {/* <select className="select_qh">
           <option value="">Chọn quy hoạch</option>
           <option value="Đất ở">Đất ở</option>
           <option value="Đất công cộng">Đất công cộng</option>
           <option value="Đất nông nghiệp">Đất nông nghiệp</option>
-        </select>
+        </select> */}
       </div>
 
       {/* Hiển thị thông báo */}
@@ -1339,8 +1339,8 @@ const LandUsePlanningMap = () => {
           zoom={zoomLevel}
           style={containerStyle}
           zoomControl={false}
-          maxZoom={22}
-          minZoom={14}
+          maxZoom={26}
+          minZoom={10}
           zoomSnap={0.5}
           zoomDelta={0.5}
         >

@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import "../css/ModalForm.css";
 import "../css/Dashboard.css";
-import { FaPen, FaTrash, FaEye, FaEyeSlash } from "react-icons/fa";
+import { FaPen, FaTrash, FaEye, FaEyeSlash, FaSearch } from "react-icons/fa";
 
 const API_URL = "http://127.0.0.1:8000";
 
@@ -505,6 +505,7 @@ export default function Dashboard() {
         </h2>
         <div className="dashboard-controls">
           <div className="search-container">
+            <FaSearch className="search-icon" />
             <input
               type="text"
               placeholder="Tìm kiếm..."
@@ -876,6 +877,7 @@ export default function Dashboard() {
       )}
 
       {/* DETAIL MODAL */}
+      {/* DETAIL MODAL */}
       {showDetailModal && (
         <div
           className="modal-overlay"
@@ -967,7 +969,6 @@ export default function Dashboard() {
                           {selectedDetailItem.address || "-"}
                         </span>
                       </div>
-
                       <div className="detail-item">
                         <span className="detail-label">Vai trò:</span>
                         <span className="detail-value role-badge">
@@ -1036,7 +1037,156 @@ export default function Dashboard() {
                       </div>
                     </div>
                   )}
-                  {/* UNITS & TEAMS giữ nguyên */}
+
+                  {/* UNITS */}
+                  {types === "units" && (
+                    <div className="detail-grid">
+                      <div className="detail-item">
+                        <span className="detail-label">ID:</span>
+                        <span className="detail-value">
+                          {selectedDetailItem.id}
+                        </span>
+                      </div>
+                      <div className="detail-item">
+                        <span className="detail-label">Tên đơn vị:</span>
+                        <span className="detail-value">
+                          {selectedDetailItem.name}
+                        </span>
+                      </div>
+                      <div className="detail-item">
+                        <span className="detail-label">Loại:</span>
+                        <span className="detail-value">
+                          {selectedDetailItem.type}
+                        </span>
+                      </div>
+                      <div className="detail-item">
+                        <span className="detail-label">Mã đơn vị:</span>
+                        <span className="detail-value code-badge">
+                          {selectedDetailItem.code}
+                        </span>
+                      </div>
+
+                      {/* Hiển thị danh sách teams nếu có */}
+                      {selectedDetailItem.teams &&
+                        selectedDetailItem.teams.length > 0 && (
+                          <div className="detail-item full-width">
+                            <span className="detail-label">
+                              Các nhóm trực thuộc:
+                            </span>
+                            <div className="teams-list">
+                              {selectedDetailItem.teams.map((team) => (
+                                <div key={team.id} className="team-item">
+                                  <span className="team-name">{team.name}</span>
+                                  <span className="team-code">
+                                    ({team.code})
+                                  </span>
+                                  <span
+                                    className={`team-status ${team.status}`}
+                                  >
+                                    {team.status === "active"
+                                      ? "Hoạt động"
+                                      : "Không hoạt động"}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                      <div className="detail-item full-width">
+                        <span className="detail-label">Ngày tạo:</span>
+                        <span className="detail-value">
+                          {selectedDetailItem.created_at
+                            ? new Date(
+                                selectedDetailItem.created_at
+                              ).toLocaleString("vi-VN")
+                            : "-"}
+                        </span>
+                      </div>
+                      <div className="detail-item full-width">
+                        <span className="detail-label">Cập nhật cuối:</span>
+                        <span className="detail-value">
+                          {selectedDetailItem.updated_at
+                            ? new Date(
+                                selectedDetailItem.updated_at
+                              ).toLocaleString("vi-VN")
+                            : "-"}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* TEAMS */}
+                  {types === "teams" && (
+                    <div className="detail-grid">
+                      <div className="detail-item">
+                        <span className="detail-label">ID:</span>
+                        <span className="detail-value">
+                          {selectedDetailItem.id}
+                        </span>
+                      </div>
+                      <div className="detail-item">
+                        <span className="detail-label">Tên nhóm:</span>
+                        <span className="detail-value">
+                          {selectedDetailItem.name}
+                        </span>
+                      </div>
+                      <div className="detail-item">
+                        <span className="detail-label">Mã nhóm:</span>
+                        <span className="detail-value code-badge">
+                          {selectedDetailItem.code}
+                        </span>
+                      </div>
+                      <div className="detail-item">
+                        <span className="detail-label">Mã đơn vị:</span>
+                        <span className="detail-value code-badge">
+                          {selectedDetailItem.unit_code}
+                        </span>
+                      </div>
+                      <div className="detail-item">
+                        <span className="detail-label">Đơn vị:</span>
+                        <span className="detail-value">
+                          {selectedDetailItem.unit?.name || "-"}
+                        </span>
+                      </div>
+                      <div className="detail-item full-width">
+                        <span className="detail-label">Mô tả:</span>
+                        <span className="detail-value">
+                          {selectedDetailItem.description || "-"}
+                        </span>
+                      </div>
+                      <div className="detail-item">
+                        <span className="detail-label">Trạng thái:</span>
+                        <span
+                          className={`detail-value status-badge ${selectedDetailItem.status}`}
+                        >
+                          {selectedDetailItem.status === "active"
+                            ? "Hoạt động"
+                            : "Không hoạt động"}
+                        </span>
+                      </div>
+                      <div className="detail-item full-width">
+                        <span className="detail-label">Ngày tạo:</span>
+                        <span className="detail-value">
+                          {selectedDetailItem.created_at
+                            ? new Date(
+                                selectedDetailItem.created_at
+                              ).toLocaleString("vi-VN")
+                            : "-"}
+                        </span>
+                      </div>
+                      <div className="detail-item full-width">
+                        <span className="detail-label">Cập nhật cuối:</span>
+                        <span className="detail-value">
+                          {selectedDetailItem.updated_at
+                            ? new Date(
+                                selectedDetailItem.updated_at
+                              ).toLocaleString("vi-VN")
+                            : "-"}
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="detail-error">

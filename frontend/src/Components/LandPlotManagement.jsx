@@ -382,18 +382,6 @@ const LandPlotManagement = () => {
   );
 
   // Xử lý response API thống nhất
-  // const processApiResponse = (responseData) => {
-  //   if (Array.isArray(responseData)) {
-  //     return responseData;
-  //   } else if (responseData && Array.isArray(responseData.data)) {
-  //     return responseData.data;
-  //   } else if (responseData && responseData.data) {
-  //     return [responseData.data];
-  //   } else {
-  //     return responseData || [];
-  //   }
-  // };
-  // Xử lý response API thống nhất
   const processApiResponse = (responseData) => {
     // console.log("🔄 Processing API response...");
 
@@ -815,6 +803,7 @@ const LandPlotManagement = () => {
         fetchLandPlot={fetchLandPlots}
         error={error}
         setError={setError}
+        onPlotUpdated={handlePlotUpdated} // THÊM CALLBACK NÀY NẾU CHƯA CÓ
       />
 
       <LandPLotDetailModal

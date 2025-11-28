@@ -114,7 +114,7 @@ const PlotInfo = ({ plot, detail }) => {
         <p>Diện tích: {parseFloat(detail.dien_tich).toLocaleString()} m²</p>
         <p>Tỷ lệ: {percentage.toFixed(2)}%</p>
         <p>Chủ sở hữu: {plot.ten_chu || "Chưa cập nhật"}</p>
-        <p>Phường/Xã: {plot.phuong_xa}</p>
+        {/* <p>Phường/Xã: {plot.phuong_xa}</p> */}
         <button
           onClick={handleDirectionsClick}
           style={{
